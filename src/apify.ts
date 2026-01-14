@@ -20,6 +20,25 @@ export interface ApifyRunResult<T = any> {
   runId?: string;                     // Actor Run ID
 }
 
+// Apify API 응답 타입
+interface ApifyRunStartResponse {
+  data: {
+    id: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
+interface ApifyRunStatusResponse {
+  data: {
+    id: string;
+    status: string;
+    statusMessage?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
 /**
  * Apify Actor 실행 및 결과 조회
  * @param options Actor 실행 옵션
@@ -51,7 +70,7 @@ export async function runApifyActor<T = any>(
     );
 
     if (!runRes.ok) {
-      const errorData = await runRes.json() as any;
+      const errorData = (await runRes.json()) as ApifyRunStartResponse;
       console.error('[Apify] Run creation failed:', errorData);
       return {
         success: false,
@@ -59,7 +78,7 @@ export async function runApifyActor<T = any>(
       };
     }
 
-    const runData = await runRes.json() as any;
+    const runData = (await runRes.json()) as ApifyRunStartResponse;
     const runId = runData.data.id;
 
     console.log(`[Apify] Run created: ${runId}`);
@@ -83,7 +102,7 @@ export async function runApifyActor<T = any>(
         };
       }
 
-      const statusData = await statusRes.json() as any;
+      const statusData = (await statusRes.json()) as ApifyRunStatusResponse;
       status = statusData.data.status;
       attempt++;
 

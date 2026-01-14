@@ -33,7 +33,7 @@ export async function searchXiaohongshuVideos(
       }
     );
 
-    const runData = await runRes.json() as any;
+    const runData = (await runRes.json()) as { data: { id: string; [key: string]: any }; [key: string]: any };
     if (!runRes.ok) {
       console.error('[Xiaohongshu] Run 시작 실패:', runData);
       return [];
@@ -54,7 +54,7 @@ export async function searchXiaohongshuVideos(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
       );
 
-      const statusData = await statusRes.json() as any;
+      const statusData = (await statusRes.json()) as { data: { status: string; statusMessage?: string; [key: string]: any }; [key: string]: any };
       status = statusData.data.status;
       attempt++;
 
@@ -85,7 +85,7 @@ export async function searchXiaohongshuVideos(
       return [];
     }
 
-    const dataset = await datasetRes.json() as any;
+    const dataset = (await datasetRes.json()) as unknown[];
     if (!Array.isArray(dataset) || dataset.length === 0) {
       console.log('[Xiaohongshu] 검색 결과 없음');
       return [];
@@ -221,7 +221,7 @@ export async function searchXiaohongshuVideosParallel(
         }
       );
 
-      const runData = await runRes.json() as any;
+      const runData = (await runRes.json()) as { data: { id: string; [key: string]: any }; [key: string]: any };
       if (!runRes.ok) {
         console.error(`[Xiaohongshu Parallel ${sortType}] Run 시작 실패:`, runData);
         return { runId: null, sortType };
@@ -253,7 +253,7 @@ export async function searchXiaohongshuVideosParallel(
         const statusRes = await fetch(
           `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
         );
-        const statusData = await statusRes.json() as any;
+        const statusData = (await statusRes.json()) as { data: { status: string; statusMessage?: string; [key: string]: any }; [key: string]: any };
         status = statusData.data.status;
 
         if (status === 'SUCCEEDED') break;
@@ -281,9 +281,9 @@ export async function searchXiaohongshuVideosParallel(
         return [];
       }
 
-      const dataset = await datasetRes.json() as any;
-      console.log(`[Xiaohongshu Parallel ${sortType}] ✅ ${dataset.length}개 결과`);
-      return dataset;
+      const dataset = (await datasetRes.json()) as unknown[];
+      console.log(`[Xiaohongshu Parallel ${sortType}] ✅ ${Array.isArray(dataset) ? dataset.length : 0}개 결과`);
+      return Array.isArray(dataset) ? dataset : [];
     });
 
     const allDatasets = await Promise.all(datasetPromises);

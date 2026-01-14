@@ -45,7 +45,7 @@ export async function searchDouyinVideos(
       }
     );
 
-    const runData = await runRes.json() as any;
+    const runData = (await runRes.json()) as { data: { id: string; [key: string]: any }; [key: string]: any };
     if (!runRes.ok) {
       console.error('[Douyin] Run 시작 실패:', runData);
       return [];
@@ -66,7 +66,7 @@ export async function searchDouyinVideos(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
       );
 
-      const statusData = await statusRes.json() as any;
+      const statusData = (await statusRes.json()) as { data: { status: string; statusMessage?: string; [key: string]: any }; [key: string]: any };
       status = statusData.data.status;
       attempt++;
 
@@ -99,7 +99,7 @@ export async function searchDouyinVideos(
       `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
     );
 
-    const dataset = await datasetRes.json() as any;
+    const dataset = (await datasetRes.json()) as unknown[];
     console.log(`[Douyin] API 응답 데이터: ${Array.isArray(dataset) ? dataset.length : 0}개`);
 
     if (!Array.isArray(dataset) || dataset.length === 0) {
@@ -206,7 +206,7 @@ export async function searchDouyinVideosParallel(
         }
       );
 
-      const runData = await runRes.json() as any;
+      const runData = (await runRes.json()) as { data: { id: string; [key: string]: any }; [key: string]: any };
       if (!runRes.ok) {
         console.error(`[Douyin Parallel ${sortFilter}] Run 시작 실패:`, runData);
         return { runId: null, sortFilter };
@@ -238,7 +238,7 @@ export async function searchDouyinVideosParallel(
         const statusRes = await fetch(
           `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
         );
-        const statusData = await statusRes.json() as any;
+        const statusData = (await statusRes.json()) as { data: { status: string; statusMessage?: string; [key: string]: any }; [key: string]: any };
         status = statusData.data.status;
         attempt++;
 
@@ -267,7 +267,7 @@ export async function searchDouyinVideosParallel(
       const datasetRes = await fetch(
         `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
       );
-      const dataset = await datasetRes.json() as any;
+      const dataset = (await datasetRes.json()) as unknown[];
       console.log(`[Douyin Parallel ${sortFilter}] 데이터: ${Array.isArray(dataset) ? dataset.length : 0}개`);
       return Array.isArray(dataset) ? dataset : [];
     });
@@ -277,7 +277,7 @@ export async function searchDouyinVideosParallel(
     // 3️⃣ 결과 병합 및 중복 제거 (ID 기준)
     const allItems = datasets.flat();
     const uniqueItems = Array.from(
-      new Map(allItems.map(item => [item.id, item])).values()
+      new Map(allItems.map((item: any) => [item.id, item])).values()
     );
 
     console.log(`[Douyin Parallel] 총 ${allItems.length}개 → 중복 제거 후: ${uniqueItems.length}개`);
