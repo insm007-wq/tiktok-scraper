@@ -45,7 +45,7 @@ export async function searchTikTokVideos(
       }
     );
 
-    const runData = await runRes.json();
+    const runData = await runRes.json() as any;
     if (!runRes.ok) {
       console.error('[TikTok] Run 시작 실패:', runData);
       return [];
@@ -66,7 +66,7 @@ export async function searchTikTokVideos(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
       );
 
-      const statusData = await statusRes.json();
+      const statusData = await statusRes.json() as any;
       status = statusData.data.status;
       attempt++;
 
@@ -92,7 +92,7 @@ export async function searchTikTokVideos(
       `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
     );
 
-    const dataset = await datasetRes.json();
+    const dataset = await datasetRes.json() as any;
     if (!Array.isArray(dataset) || dataset.length === 0) {
       console.log('[TikTok] 검색 결과 없음');
       return [];

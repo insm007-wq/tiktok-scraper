@@ -45,7 +45,7 @@ export async function searchDouyinVideos(
       }
     );
 
-    const runData = await runRes.json();
+    const runData = await runRes.json() as any;
     if (!runRes.ok) {
       console.error('[Douyin] Run 시작 실패:', runData);
       return [];
@@ -66,7 +66,7 @@ export async function searchDouyinVideos(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
       );
 
-      const statusData = await statusRes.json();
+      const statusData = await statusRes.json() as any;
       status = statusData.data.status;
       attempt++;
 
@@ -99,7 +99,7 @@ export async function searchDouyinVideos(
       `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
     );
 
-    const dataset = await datasetRes.json();
+    const dataset = await datasetRes.json() as any;
     console.log(`[Douyin] API 응답 데이터: ${Array.isArray(dataset) ? dataset.length : 0}개`);
 
     if (!Array.isArray(dataset) || dataset.length === 0) {
@@ -206,7 +206,7 @@ export async function searchDouyinVideosParallel(
         }
       );
 
-      const runData = await runRes.json();
+      const runData = await runRes.json() as any;
       if (!runRes.ok) {
         console.error(`[Douyin Parallel ${sortFilter}] Run 시작 실패:`, runData);
         return { runId: null, sortFilter };
@@ -238,7 +238,7 @@ export async function searchDouyinVideosParallel(
         const statusRes = await fetch(
           `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
         );
-        const statusData = await statusRes.json();
+        const statusData = await statusRes.json() as any;
         status = statusData.data.status;
         attempt++;
 
@@ -267,7 +267,7 @@ export async function searchDouyinVideosParallel(
       const datasetRes = await fetch(
         `https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`
       );
-      const dataset = await datasetRes.json();
+      const dataset = await datasetRes.json() as any;
       console.log(`[Douyin Parallel ${sortFilter}] 데이터: ${Array.isArray(dataset) ? dataset.length : 0}개`);
       return Array.isArray(dataset) ? dataset : [];
     });

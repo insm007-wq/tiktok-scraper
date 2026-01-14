@@ -33,7 +33,7 @@ export async function searchXiaohongshuVideos(
       }
     );
 
-    const runData = await runRes.json();
+    const runData = await runRes.json() as any;
     if (!runRes.ok) {
       console.error('[Xiaohongshu] Run 시작 실패:', runData);
       return [];
@@ -54,7 +54,7 @@ export async function searchXiaohongshuVideos(
         `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
       );
 
-      const statusData = await statusRes.json();
+      const statusData = await statusRes.json() as any;
       status = statusData.data.status;
       attempt++;
 
@@ -85,7 +85,7 @@ export async function searchXiaohongshuVideos(
       return [];
     }
 
-    const dataset = await datasetRes.json();
+    const dataset = await datasetRes.json() as any;
     if (!Array.isArray(dataset) || dataset.length === 0) {
       console.log('[Xiaohongshu] 검색 결과 없음');
       return [];
@@ -221,7 +221,7 @@ export async function searchXiaohongshuVideosParallel(
         }
       );
 
-      const runData = await runRes.json();
+      const runData = await runRes.json() as any;
       if (!runRes.ok) {
         console.error(`[Xiaohongshu Parallel ${sortType}] Run 시작 실패:`, runData);
         return { runId: null, sortType };
@@ -253,7 +253,7 @@ export async function searchXiaohongshuVideosParallel(
         const statusRes = await fetch(
           `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
         );
-        const statusData = await statusRes.json();
+        const statusData = await statusRes.json() as any;
         status = statusData.data.status;
 
         if (status === 'SUCCEEDED') break;
@@ -281,7 +281,7 @@ export async function searchXiaohongshuVideosParallel(
         return [];
       }
 
-      const dataset = await datasetRes.json();
+      const dataset = await datasetRes.json() as any;
       console.log(`[Xiaohongshu Parallel ${sortType}] ✅ ${dataset.length}개 결과`);
       return dataset;
     });

@@ -51,7 +51,7 @@ export async function runApifyActor<T = any>(
     );
 
     if (!runRes.ok) {
-      const errorData = await runRes.json();
+      const errorData = await runRes.json() as any;
       console.error('[Apify] Run creation failed:', errorData);
       return {
         success: false,
@@ -59,7 +59,7 @@ export async function runApifyActor<T = any>(
       };
     }
 
-    const runData = await runRes.json();
+    const runData = await runRes.json() as any;
     const runId = runData.data.id;
 
     console.log(`[Apify] Run created: ${runId}`);
@@ -83,7 +83,7 @@ export async function runApifyActor<T = any>(
         };
       }
 
-      const statusData = await statusRes.json();
+      const statusData = await statusRes.json() as any;
       status = statusData.data.status;
       attempt++;
 
@@ -144,7 +144,7 @@ export async function runApifyActor<T = any>(
       };
     }
 
-    const dataset = await datasetRes.json();
+    const dataset = await datasetRes.json() as any;
 
     if (!Array.isArray(dataset)) {
       console.error('[Apify] Unexpected response format:', typeof dataset);
