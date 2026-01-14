@@ -4,7 +4,15 @@
       "Bash(git push:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --index-filter 'git rm -f --cached --ignore-unmatch \"\"src/scrapers\\\\357\\\\200\\\\242\\\\357\\\\200\\\\212cp D\\\\357\\\\200\\\\272projecttik-tok-scoutlibscrapersdouyin.ts D\\\\357\\\\200\\\\272projectrailway-scraper-serversrcscrapers\\\\357\\\\200\\\\242\"\" \"\"src/scrapers\\\\357\\\\200\\\\242\\\\357\\\\200\\\\212\\\\357\\\\200\\\\212# Types \\\\353\\\\263\\\\265\\\\354\\\\202\\\\254\\\\357\\\\200\\\\212cp D\\\\357\\\\200\\\\272projecttik-tok-scouttypesvideo.ts D\\\\357\\\\200\\\\272projectrailway-scraper-serversrctypes\\\\357\\\\200\\\\242\"\"' HEAD)"
+      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --index-filter 'git rm -f --cached --ignore-unmatch \"\"src/scrapers\\\\357\\\\200\\\\242\\\\357\\\\200\\\\212cp D\\\\357\\\\200\\\\272projecttik-tok-scoutlibscrapersdouyin.ts D\\\\357\\\\200\\\\272projectrailway-scraper-serversrcscrapers\\\\357\\\\200\\\\242\"\" \"\"src/scrapers\\\\357\\\\200\\\\242\\\\357\\\\200\\\\212\\\\357\\\\200\\\\212# Types \\\\353\\\\263\\\\265\\\\354\\\\202\\\\254\\\\357\\\\200\\\\212cp D\\\\357\\\\200\\\\272projecttik-tok-scouttypesvideo.ts D\\\\357\\\\200\\\\272projectrailway-scraper-serversrctypes\\\\357\\\\200\\\\242\"\"' HEAD)",
+      "Bash(git rm:*)",
+      "Bash(git update-index --remove \"src/scrapers\\\\357\\\\200\\\\242\\\\357\\\\200\\\\212cp D\\\\357\\\\200\\\\272projecttik-tok-scoutlibscrapersdouyin.ts D\\\\357\\\\200\\\\272projectrailway-scraper-serversrcscrapers\\\\357\\\\200\\\\242\" \"src/scrapers\\\\357\\\\200\\\\242\\\\357\\\\200\\\\212\\\\357\\\\200\\\\212# Types \\\\353\\\\263\\\\265\\\\354\\\\202\\\\254\\\\357\\\\200\\\\212cp D\\\\357\\\\200\\\\272projecttik-tok-scouttypesvideo.ts D\\\\357\\\\200\\\\272projectrailway-scraper-serversrctypes\\\\357\\\\200\\\\242\")",
+      "Bash(while read file)",
+      "Bash(do git update-index --remove \"$file\")",
+      "Bash(xargs -0 -I {} git update-index --force-remove '{}')",
+      "Bash(npm install)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run build)"
     ]
   }
 }
