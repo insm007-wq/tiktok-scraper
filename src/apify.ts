@@ -1,5 +1,6 @@
 /**
  * Apify Actor 실행 유틸리티
+ * - Run → Polling (지수 백오프) → Dataset 패턴 추상화
  */
 
 export interface ApifyRunOptions {
@@ -18,6 +19,9 @@ export interface ApifyRunResult<T = any> {
   runId?: string;
 }
 
+/**
+ * Apify Actor 실행 및 결과 조회
+ */
 export async function runApifyActor<T = any>(options: ApifyRunOptions): Promise<ApifyRunResult<T>> {
   const { actorId, input, apiKey, maxAttempts = 60, initialWaitTime = 500, maxWaitTime = 5000 } = options;
 
@@ -42,9 +46,7 @@ export async function runApifyActor<T = any>(options: ApifyRunOptions): Promise<
       };
     }
 
-    // ✨ [수정] 위에서 casting 했으므로 이제 에러 안 남
     const runId = runData.data.id;
-
     console.log(`[Apify] Run created: ${runId}`);
 
     // Step 2: 폴링 (지수 백오프)
@@ -72,11 +74,13 @@ export async function runApifyActor<T = any>(options: ApifyRunOptions): Promise<
 
       console.log(`[Apify] Status check #${attempt}: ${status} (waited ${waitTime}ms)`);
 
+      // 성공
       if (status === "SUCCEEDED") {
         console.log(`[Apify] Actor completed successfully`);
         break;
       }
 
+      // 실패
       if (status === "FAILED" || status === "ABORTED") {
         const message = statusData.data.statusMessage || "Unknown error";
         console.error(`[Apify] Actor failed: ${message}`);
@@ -87,12 +91,14 @@ export async function runApifyActor<T = any>(options: ApifyRunOptions): Promise<
         };
       }
 
+      // 계속 진행 중
       if (status === "RUNNING" || status === "READY") {
         await new Promise((r) => setTimeout(r, waitTime));
         waitTime = Math.min(waitTime * 2, maxWaitTime);
       }
     }
 
+    // 타임아웃
     if (status !== "SUCCEEDED") {
       console.error(`[Apify] Actor timeout (status: ${status}, attempts: ${attempt})`);
       return {

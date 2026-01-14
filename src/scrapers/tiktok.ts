@@ -1,5 +1,8 @@
 import { VideoResult } from "../types/video";
 
+/**
+ * TikTok 영상 검색
+ */
 export async function searchTikTokVideos(query: string, limit: number, apiKey: string, dateRange?: string): Promise<VideoResult[]> {
   try {
     const actorId = "apidojo~tiktok-scraper";

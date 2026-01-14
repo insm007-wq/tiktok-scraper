@@ -74,7 +74,6 @@ export async function searchXiaohongshuVideos(query: string, limit: number, apiK
       })
       .slice(0, limit)
       .map((item: any, index: number) => {
-        // (매핑 로직 동일)
         const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
         const thumbnail = item.item?.video?.media?.cover || item.item?.note_card?.cover?.url_default;
 
@@ -183,13 +182,11 @@ export async function searchXiaohongshuVideosParallel(
 
     if (combinedDataset.length === 0) return [];
 
-    // 필터링 및 변환 로직 동일
     const videoOnlyDataset = combinedDataset.filter((item: any) => {
       return item.item?.note_card?.type === "video" || item.item?.type === "video" || !!item.item?.video?.media;
     });
 
     const results = videoOnlyDataset.map((item: any, index: number) => {
-      // (매핑 로직 동일)
       const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
       const thumbnail = item.item?.video?.media?.cover || item.item?.note_card?.cover?.url_default;
 

@@ -1,5 +1,8 @@
 import { VideoResult } from "../types/video";
 
+/**
+ * Douyin 영상 검색
+ */
 export async function searchDouyinVideos(query: string, limit: number, apiKey: string, dateRange?: string): Promise<VideoResult[]> {
   try {
     const actorId = "natanielsantos~douyin-scraper";
@@ -91,7 +94,6 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
     }
 
     const results = dataset.slice(0, limit).map((item: any, index: number) => {
-      // (매핑 로직 동일)
       const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
       return {
         id: item.id || `douyin-video-${index}`,
@@ -120,6 +122,9 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
   }
 }
 
+/**
+ * Douyin 병렬 검색
+ */
 export async function searchDouyinVideosParallel(query: string, limit: number, apiKey: string, dateRange?: string): Promise<VideoResult[]> {
   try {
     const actorId = "natanielsantos~douyin-scraper";
@@ -168,9 +173,7 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
     const runs = await Promise.all(runPromises);
     const validRuns = runs.filter((r) => r.runId !== null);
 
-    if (validRuns.length === 0) {
-      return [];
-    }
+    if (validRuns.length === 0) return [];
 
     const datasetPromises = validRuns.map(async ({ runId, sortFilter }) => {
       let status = "RUNNING";
@@ -209,7 +212,6 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
     if (uniqueItems.length === 0) return [];
 
     const results = uniqueItems.slice(0, limit).map((item: any, index: number) => {
-      // (매핑 로직 동일)
       const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
       return {
         id: item.id || `douyin-video-${index}`,
