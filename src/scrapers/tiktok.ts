@@ -26,7 +26,7 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         keywords: [query],
-        maxItems: 75,
+        maxItems: 60,
         sortType: "RELEVANCE",
         location: "US",
         dateRange: mapDateRange(dateRange),
@@ -99,7 +99,7 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       return [];
     }
 
-    const results = dataset.slice(0, Math.min(limit, 75)).map((item: any, index: number) => {
+    const results = dataset.slice(0, Math.min(limit, 60)).map((item: any, index: number) => {
       const hashtags = Array.isArray(item.hashtags)
         ? item.hashtags
             .filter((h: any) => h !== null && h !== undefined)
@@ -133,7 +133,7 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
     const totalDuration = Date.now() - startTime;
     console.log(`[TikTok] ✅ Run completed in ${runDuration.toFixed(2)}s`);
     console.log(`[TikTok] Raw items: ${dataset.length}, Final: ${results.length}`);
-    console.log(`[TikTok] Yield: ${((results.length / 75) * 100).toFixed(1)}%`);
+    console.log(`[TikTok] Yield: ${((results.length / 60) * 100).toFixed(1)}%`);
 
     return results;
   } catch (error) {

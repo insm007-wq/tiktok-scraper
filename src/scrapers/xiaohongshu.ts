@@ -121,7 +121,7 @@ export async function searchXiaohongshuVideosParallel(
         keywords: [query],
         sortType,
         noteType: "video",
-        maxItems: 30,
+        maxItems: 25,
       };
 
       const runRes = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`, {

@@ -23,7 +23,7 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
       searchTermsOrHashtags: [query],
       searchSortFilter: "most_liked",
       searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
-      maxItemsPerUrl: 50,
+      maxItemsPerUrl: 40,
       shouldDownloadVideos: true,
       shouldDownloadCovers: false,
     };
@@ -148,7 +148,7 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
         searchTermsOrHashtags: [query],
         searchSortFilter: sortFilter,
         searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
-        maxItemsPerUrl: 25,
+        maxItemsPerUrl: 20,
         shouldDownloadVideos: true,
         shouldDownloadCovers: false,
       };
