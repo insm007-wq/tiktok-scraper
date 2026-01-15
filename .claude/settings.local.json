@@ -12,7 +12,14 @@
       "Bash(xargs -0 -I {} git update-index --force-remove '{}')",
       "Bash(npm install)",
       "Bash(npm run type-check:*)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(openssl rand:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(tree:*)",
+      "Bash(git -C \"D:\\\\project\\\\tiktok-scraper\" log --oneline -10)",
+      "Bash(env)",
+      "WebFetch(domain:tiktok-scraper-production-e6af.up.railway.app)"
     ]
   }
 }

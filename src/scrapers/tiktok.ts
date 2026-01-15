@@ -8,6 +8,7 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
     const actorId = "apidojo~tiktok-scraper";
     const startTime = Date.now();
     console.log(`[TikTok] 검색 시작: ${query} (제한: ${limit}, 기간: ${dateRange || "all"})`);
+    console.log(`[TikTok] API 키 확인: ${apiKey.substring(0, 10)}...${apiKey.length} chars`);
 
     const mapDateRange = (uploadPeriod?: string): string => {
       const mapping: Record<string, string> = {
@@ -36,13 +37,20 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
 
     // ✨ [수정] as any 추가
     const runData = (await runRes.json()) as any;
+    console.log(`[TikTok] HTTP Status: ${runRes.status}, Response:`, JSON.stringify(runData).substring(0, 200));
+
     if (!runRes.ok) {
       console.error("[TikTok] Run 시작 실패:", runData);
       return [];
     }
 
+    if (!runData.data || !runData.data.id) {
+      console.error("[TikTok] Run ID 추출 실패. 응답:", JSON.stringify(runData));
+      return [];
+    }
+
     const runId = runData.data.id;
-    console.log(`[TikTok] Run ID: ${runId}`);
+    console.log(`[TikTok] ✅ Run ID: ${runId}`);
 
     let status = "RUNNING";
     let attempt = 0;
