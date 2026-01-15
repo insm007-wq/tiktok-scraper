@@ -148,7 +148,7 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
         searchTermsOrHashtags: [query],
         searchSortFilter: sortFilter,
         searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
-        maxItemsPerUrl: 17,
+        maxItemsPerUrl: 25,
         shouldDownloadVideos: false,
         shouldDownloadCovers: false,
       };

@@ -121,7 +121,7 @@ export async function searchXiaohongshuVideosParallel(
         keywords: [query],
         sortType,
         noteType: "video",
-        maxItems: 20,
+        maxItems: 30,
       };
 
       const runRes = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`, {
@@ -149,9 +149,9 @@ export async function searchXiaohongshuVideosParallel(
     const datasetPromises = validRuns.map(async ({ runId, sortType }) => {
       let status = "RUNNING";
       let attempt = 0;
-      const maxAttempts = 60;
+      const maxAttempts = 90;
       let waitTime = 500;
-      const maxWaitTime = 5000;
+      const maxWaitTime = 6000;
 
       while ((status === "RUNNING" || status === "READY") && attempt < maxAttempts) {
         await new Promise((r) => setTimeout(r, waitTime));

@@ -26,7 +26,7 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         keywords: [query],
-        maxItems: 50,
+        maxItems: 75,
         sortType: "RELEVANCE",
         location: "US",
         dateRange: mapDateRange(dateRange),
@@ -54,9 +54,11 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
 
     let status = "RUNNING";
     let attempt = 0;
-    const maxAttempts = 60;
+    const maxAttempts = 90;
     let waitTime = 500;
-    const maxWaitTime = 5000;
+    const maxWaitTime = 8000;
+    console.log(`[TikTok] Run started. Requesting 75 items...`);
+    const runStartTime = Date.now();
 
     while ((status === "RUNNING" || status === "READY") && attempt < maxAttempts) {
       const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`);
@@ -65,6 +67,11 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       const statusData = (await statusRes.json()) as any;
       status = statusData.data.status;
       attempt++;
+
+      if (attempt % 20 === 0) {
+        const elapsed = (Date.now() - runStartTime) / 1000;
+        console.log(`[TikTok] Polling ${attempt}/${maxAttempts} (${elapsed.toFixed(1)}s), Status: ${status}`);
+      }
 
       if (status === "SUCCEEDED") break;
       if (status === "FAILED" || status === "ABORTED") {
@@ -92,7 +99,7 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       return [];
     }
 
-    const results = dataset.slice(0, Math.min(limit, 50)).map((item: any, index: number) => {
+    const results = dataset.slice(0, Math.min(limit, 75)).map((item: any, index: number) => {
       const hashtags = Array.isArray(item.hashtags)
         ? item.hashtags
             .filter((h: any) => h !== null && h !== undefined)
@@ -122,8 +129,11 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       };
     });
 
-    const duration = Date.now() - startTime;
-    console.log(`[TikTok] ✅ 완료: ${results.length}개 (${(duration / 1000).toFixed(2)}초)`);
+    const runDuration = (Date.now() - runStartTime) / 1000;
+    const totalDuration = Date.now() - startTime;
+    console.log(`[TikTok] ✅ Run completed in ${runDuration.toFixed(2)}s`);
+    console.log(`[TikTok] Raw items: ${dataset.length}, Final: ${results.length}`);
+    console.log(`[TikTok] Yield: ${((results.length / 75) * 100).toFixed(1)}%`);
 
     return results;
   } catch (error) {
