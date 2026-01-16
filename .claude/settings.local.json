@@ -19,7 +19,15 @@
       "Bash(tree:*)",
       "Bash(git -C \"D:\\\\project\\\\tiktok-scraper\" log --oneline -10)",
       "Bash(env)",
-      "WebFetch(domain:tiktok-scraper-production-e6af.up.railway.app)"
+      "WebFetch(domain:tiktok-scraper-production-e6af.up.railway.app)",
+      "WebFetch(domain:apify.com)",
+      "Bash(node test-db.js:*)",
+      "Bash(npm install mongodb)",
+      "Bash(npm install:*)",
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(timeout 20 npm run dev)"
     ]
   }
 }

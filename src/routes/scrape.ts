@@ -3,6 +3,7 @@ import { authenticateApiKey } from '../middleware/auth';
 import { searchTikTokVideos } from '../scrapers/tiktok';
 import { searchDouyinVideosParallel } from '../scrapers/douyin';
 import { searchXiaohongshuVideosParallel } from '../scrapers/xiaohongshu';
+import { saveCache } from '../db/cache';
 import { VideoResult, Platform } from '../types/video';
 
 const router = Router();
@@ -99,6 +100,15 @@ router.post('/scrape', authenticateApiKey, async (req: Request, res: Response): 
     const duration = Date.now() - startTime;
 
     console.log(`[Scrape] ✅ Completed: ${videos.length} videos in ${(duration / 1000).toFixed(2)}s`);
+
+    // Save to cache for periodic updates (백그라운드에서 처리)
+    try {
+      await saveCache(platform, query, videos);
+      console.log(`[Scrape] Saved to cache: ${platform}:${query}`);
+    } catch (cacheError) {
+      console.error('[Scrape] Failed to save to cache:', cacheError);
+      // Don't fail the request if cache save fails
+    }
 
     res.json({
       success: true,

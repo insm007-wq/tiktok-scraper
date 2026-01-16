@@ -3,8 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import scrapeRouter from './routes/scrape';
+import videosRouter from './routes/videos';
 import { errorHandler } from './middleware/errorHandler';
 import { validateEnvironment } from './config/environment';
+import { initializeDatabase, closeDatabase } from './db/connection';
+import { initializeScheduler, stopScheduler } from './scheduler/scheduler';
 
 dotenv.config();
 
@@ -88,6 +91,7 @@ app.get('/debug/apify-token', async (req, res) => {
 
 // Routes
 app.use('/api', scrapeRouter);
+app.use('/api/videos', videosRouter);
 
 // 404 handler
 app.use((req, res) => {
@@ -100,8 +104,45 @@ app.use((req, res) => {
 // Error handling (must be last)
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`[Railway Server] ✓ Running on port ${PORT}`);
-  console.log(`[Railway Server] Environment: ${process.env.NODE_ENV}`);
-  console.log(`[Railway Server] Health check: GET /health`);
-});
+// Start server and initialize database & scheduler
+async function startServer() {
+  try {
+    // Initialize database connection
+    await initializeDatabase();
+
+    // Initialize scheduler
+    await initializeScheduler();
+
+    const server = app.listen(PORT, () => {
+      console.log(`[Server] ✓ Running on port ${PORT}`);
+      console.log(`[Server] Environment: ${process.env.NODE_ENV}`);
+      console.log(`[Server] Health check: GET /health`);
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', async () => {
+      console.log('[Server] SIGTERM received, shutting down gracefully...');
+      stopScheduler();
+      await closeDatabase();
+      server.close(() => {
+        console.log('[Server] Closed');
+        process.exit(0);
+      });
+    });
+
+    process.on('SIGINT', async () => {
+      console.log('[Server] SIGINT received, shutting down gracefully...');
+      stopScheduler();
+      await closeDatabase();
+      server.close(() => {
+        console.log('[Server] Closed');
+        process.exit(0);
+      });
+    });
+  } catch (error) {
+    console.error('[Server] Failed to start:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
