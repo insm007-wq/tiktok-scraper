@@ -14,7 +14,9 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
   douyin: VideoResult[];
   xiaohongshu: VideoResult[];
 }> {
-  console.log(`[Scraper] Starting scrape for keyword: "${keyword}"`);
+  const startTime = Date.now();
+  const timestamp = new Date().toISOString();
+  console.log(`\n[Scraper] 📍 ${timestamp} - Scraping: "${keyword}"\n`);
 
   const results = {
     tiktok: [] as VideoResult[],
@@ -29,12 +31,12 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
         .then(result => {
           results.tiktok = result;
           console.log(
-            `[Scraper] ✅ TikTok: ${result.length} videos for "${keyword}"`
+            `[Scraper]   ✅ TikTok    : ${String(result.length).padStart(3)} videos`
           );
           return result;
         })
         .catch(error => {
-          console.error(`[Scraper] ❌ TikTok error for "${keyword}":`, error.message);
+          console.error(`[Scraper]   ❌ TikTok error:`, error.message);
           return [];
         }),
 
@@ -42,12 +44,12 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
         .then(result => {
           results.douyin = result;
           console.log(
-            `[Scraper] ✅ Douyin: ${result.length} videos for "${keyword}"`
+            `[Scraper]   ✅ Douyin    : ${String(result.length).padStart(3)} videos`
           );
           return result;
         })
         .catch(error => {
-          console.error(`[Scraper] ❌ Douyin error for "${keyword}":`, error.message);
+          console.error(`[Scraper]   ❌ Douyin error:`, error.message);
           return [];
         }),
 
@@ -55,12 +57,12 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
         .then(result => {
           results.xiaohongshu = result;
           console.log(
-            `[Scraper] ✅ Xiaohongshu: ${result.length} videos for "${keyword}"`
+            `[Scraper]   ✅ Xiaohongshu: ${String(result.length).padStart(3)} videos`
           );
           return result;
         })
         .catch(error => {
-          console.error(`[Scraper] ❌ Xiaohongshu error for "${keyword}":`, error.message);
+          console.error(`[Scraper]   ❌ Xiaohongshu error:`, error.message);
           return [];
         }),
     ]);
@@ -72,58 +74,64 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
       saveCache('xiaohongshu', keyword, results.xiaohongshu),
     ]);
 
-    console.log(
-      `[Scraper] ✅ Completed scrape for "${keyword}" (TikTok: ${results.tiktok.length}, Douyin: ${results.douyin.length}, Xiaohongshu: ${results.xiaohongshu.length})`
-    );
+    const duration = Date.now() - startTime;
+    console.log(`\n[Scraper] ✨ Completed: "${keyword}" in ${(duration / 1000).toFixed(2)}s`);
+    console.log(`[Scraper]   📊 Total: ${results.tiktok.length + results.douyin.length + results.xiaohongshu.length} videos`);
+    console.log(`[Scraper]   • TikTok: ${results.tiktok.length} | Douyin: ${results.douyin.length} | Xiaohongshu: ${results.xiaohongshu.length}\n`);
 
     return results;
   } catch (error) {
-    console.error(`[Scraper] ❌ Error scraping "${keyword}":`, error);
+    const duration = Date.now() - startTime;
+    console.error(`\n[Scraper] ❌ Error scraping "${keyword}" after ${(duration / 1000).toFixed(2)}s`);
+    console.error(error);
     throw error;
   }
 }
 
 /**
  * Scrape TOP 50 keywords from cache
- * This is the main scheduler task - runs every 4 hours
+ * This is the main scheduler task - runs every 6 hours
  * Automatically picks up keywords from user searches
  */
 export async function scrapeTopKeywords(): Promise<void> {
-  console.log('[Scheduler] 🚀 Starting TOP 50 keywords scraping run');
-
   const startTime = Date.now();
-  let successCount = 0;
-  let failureCount = 0;
 
   try {
     // Get TOP 50 keywords from video_cache (by accessCount)
     const topKeywords = await getTopKeywordsFromCache(50);
 
     if (topKeywords.length === 0) {
-      console.log('[Scheduler] No keywords found in cache yet');
+      console.log('[Scheduler] ⚠️  No keywords found in cache yet');
       return;
     }
 
-    console.log(
-      `[Scheduler] Found ${topKeywords.length} keywords to scrape`
-    );
+    console.log(`\n[Scheduler] 📋 Found ${topKeywords.length} keywords to scrape:`);
+    console.log(`[Scheduler] ${topKeywords.map(k => `"${k.keyword}"`).join(', ')}\n`);
 
     // Scrape each keyword
-    for (const item of topKeywords) {
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (let i = 0; i < topKeywords.length; i++) {
+      const item = topKeywords[i];
+      process.stdout.write(`[Scheduler] Progress: [${String(i + 1).padStart(2)}/${topKeywords.length}] `);
       try {
         await scrapeKeywordForAllPlatforms(item.keyword);
         successCount++;
       } catch (error) {
-        console.error(`[Scheduler] Failed to scrape "${item.keyword}":`, error);
+        console.error(`\n[Scheduler] ❌ Failed to scrape "${item.keyword}":`, error);
         failureCount++;
       }
     }
 
     const duration = Math.round((Date.now() - startTime) / 1000);
-    console.log(
-      `[Scheduler] ✅ TOP 50 scraping run completed in ${duration}s (${successCount} succeeded, ${failureCount} failed)`
-    );
+    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`[Scheduler] ✅ TOP 50 scraping run completed`);
+    console.log(`[Scheduler]   ⏱️  Duration: ${duration}s`);
+    console.log(`[Scheduler]   📊 Success: ${successCount} | Failed: ${failureCount}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
   } catch (error) {
-    console.error('[Scheduler] ❌ Error in TOP 50 scraping:', error);
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    console.error(`\n[Scheduler] ❌ Error in TOP 50 scraping after ${duration}s:`, error);
   }
 }

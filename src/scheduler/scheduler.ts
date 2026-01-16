@@ -8,28 +8,50 @@ let schedulerTask: ScheduledTask | null = null;
 
 /**
  * Initialize the scheduler
- * Runs scraping every 4 hours based on TOP 50 popular keywords
+ * Runs scraping every 6 hours based on TOP 50 popular keywords
  * Keywords are automatically collected from user searches (POST /api/scrape)
  */
 export async function initializeScheduler(): Promise<void> {
-  console.log('[Scheduler] Initializing scheduler...');
+  const timestamp = new Date().toISOString();
+  console.log(`\n[Scheduler] ⏱️  ${timestamp} - Initializing scheduler...\n`);
 
-  // Schedule recurring scraping: every 4 hours (0 */4 * * *)
-  // This means at minute 0 of every 4th hour (00:00, 04:00, 08:00, 12:00, 16:00, 20:00)
-  const cronExpression = '0 */4 * * *';
-  const intervalHours = parseInt(process.env.SCRAPE_INTERVAL_HOURS || '4');
+  // Schedule recurring scraping: every 6 hours (0 */6 * * *)
+  // This means at minute 0 of every 6th hour (00:00, 06:00, 12:00, 18:00)
+  const cronExpression = '0 */6 * * *';
+  const intervalHours = parseInt(process.env.SCRAPE_INTERVAL_HOURS || '6');
 
   schedulerTask = cron.schedule(cronExpression, async () => {
-    console.log(`[Scheduler] ⏰ Starting scheduled TOP 50 keywords scrape (every ${intervalHours} hours)...`);
+    const startTime = Date.now();
+    const timestamp = new Date().toISOString();
+    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`[Scheduler] 🚀 ${timestamp}`);
+    console.log(`[Scheduler] Starting scheduled TOP 50 keywords scrape`);
+    console.log(`[Scheduler] Interval: Every ${intervalHours} hours`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
     try {
       await scrapeTopKeywords();
     } catch (error) {
-      console.error('[Scheduler] Scheduled scrape failed:', error);
+      const duration = Date.now() - startTime;
+      console.error(`\n[Scheduler] ❌ Scheduled scrape failed after ${(duration / 1000).toFixed(2)}s`);
+      console.error(error);
     }
   });
 
-  console.log(`[Scheduler] ✅ Scheduler initialized (interval: every ${intervalHours} hours)`);
-  console.log('[Scheduler] Keywords will be automatically collected from user searches');
+  console.log(`[Scheduler] ✅ Scheduler initialized`);
+  console.log(`[Scheduler] 📅 Schedule: Every ${intervalHours} hours`);
+  console.log(`[Scheduler] 🏷️  Keywords: Automatically collected from user searches`);
+  console.log(`[Scheduler] ⏰ Next scheduled run: ${getNextScheduledTime(intervalHours)}\n`);
+}
+
+/**
+ * Get next scheduled run time
+ */
+function getNextScheduledTime(intervalHours: number): string {
+  const now = new Date();
+  const nextRun = new Date(now.getTime() + intervalHours * 60 * 60 * 1000);
+  nextRun.setMinutes(0);
+  nextRun.setSeconds(0);
+  return nextRun.toISOString();
 }
 
 /**
@@ -39,7 +61,8 @@ export function stopScheduler(): void {
   if (schedulerTask) {
     schedulerTask.stop();
     schedulerTask = null;
-    console.log('[Scheduler] ✅ Scheduler stopped');
+    const timestamp = new Date().toISOString();
+    console.log(`\n[Scheduler] ⏹️  ${timestamp} - Scheduler stopped\n`);
   }
 }
 
