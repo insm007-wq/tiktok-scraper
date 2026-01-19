@@ -259,9 +259,13 @@ export async function clearAllCache(): Promise<number> {
 /**
  * Get keywords from video_cache by accessCount (조회 횟수)
  * Groups by query (keyword) and sums up accessCount across all platforms
- * Filters by minimum accessCount threshold (no hard limit on count)
+ * Filters by minimum accessCount threshold with optional recency and max count limits
  */
-export async function getTopKeywordsFromCache(minAccessCount: number = 2): Promise<{
+export async function getTopKeywordsFromCache(
+  minAccessCount: number = 2,
+  maxCount: number = 100,
+  recentDays: number = 7
+): Promise<{
   keyword: string;
   accessCount: number;
   videoCount: number;
@@ -269,6 +273,10 @@ export async function getTopKeywordsFromCache(minAccessCount: number = 2): Promi
   platforms: string[];
 }[]> {
   const collection = getCacheCollection();
+
+  // Calculate the date threshold (e.g., 7 days ago)
+  const recencyThreshold = new Date();
+  recencyThreshold.setDate(recencyThreshold.getDate() - recentDays);
 
   const results = (await collection
     .aggregate([
@@ -284,10 +292,14 @@ export async function getTopKeywordsFromCache(minAccessCount: number = 2): Promi
       {
         $match: {
           accessCount: { $gte: minAccessCount }, // 최소 접근 횟수 필터
+          lastAccessed: { $gte: recencyThreshold }, // 최근 N일 이내 접근한 키워드
         },
       },
       {
         $sort: { accessCount: -1 }, // 조회 횟수 기준 정렬
+      },
+      {
+        $limit: maxCount, // 최대 개수 제한
       },
     ])
     .toArray()) as Array<{

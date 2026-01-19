@@ -89,24 +89,36 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
 }
 
 /**
- * Scrape keywords from cache based on minimum access threshold
- * This is the main scheduler task - runs every 12 hours
- * Automatically picks up keywords from user searches with accessCount >= minAccessCount
+ * Scrape keywords from cache based on filters
+ * This is the main scheduler task - runs every 24 hours
+ * Automatically picks up keywords from user searches with:
+ * - accessCount >= minAccessCount (default: 2)
+ * - lastAccessed within recentDays (default: 7 days)
+ * - Limited to maxCount (default: 100)
  */
 export async function scrapeTopKeywords(): Promise<void> {
   const startTime = Date.now();
 
   try {
-    // Get keywords with minimum accessCount threshold (default: 2)
+    // Get configuration from environment variables
     const minAccessCount = parseInt(process.env.MIN_KEYWORD_ACCESS_COUNT || '2');
-    const keywords = await getTopKeywordsFromCache(minAccessCount);
+    const maxCount = parseInt(process.env.MAX_KEYWORDS_TO_SCRAPE || '100');
+    const recentDays = parseInt(process.env.RECENT_KEYWORD_DAYS || '7');
+
+    const keywords = await getTopKeywordsFromCache(minAccessCount, maxCount, recentDays);
 
     if (keywords.length === 0) {
-      console.log(`[Scheduler] ⚠️  No keywords found with accessCount >= ${minAccessCount}`);
+      console.log(
+        `[Scheduler] ⚠️  No keywords found matching filters: ` +
+        `accessCount >= ${minAccessCount}, lastAccessed within ${recentDays} days`
+      );
       return;
     }
 
-    console.log(`\n[Scheduler] 📋 Found ${keywords.length} keywords to scrape (accessCount >= ${minAccessCount}):`);
+    console.log(
+      `\n[Scheduler] 📋 Found ${keywords.length}/${maxCount} keywords to scrape ` +
+      `(accessCount >= ${minAccessCount}, recent ${recentDays}d):`
+    );
     console.log(`[Scheduler] ${keywords.map(k => `"${k.keyword}"(${k.accessCount})`).join(', ')}\n`);
 
     // Scrape each keyword
