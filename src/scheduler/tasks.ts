@@ -89,32 +89,33 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
 }
 
 /**
- * Scrape TOP 50 keywords from cache
- * This is the main scheduler task - runs every 6 hours
- * Automatically picks up keywords from user searches
+ * Scrape keywords from cache based on minimum access threshold
+ * This is the main scheduler task - runs every 12 hours
+ * Automatically picks up keywords from user searches with accessCount >= minAccessCount
  */
 export async function scrapeTopKeywords(): Promise<void> {
   const startTime = Date.now();
 
   try {
-    // Get TOP 50 keywords from video_cache (by accessCount)
-    const topKeywords = await getTopKeywordsFromCache(50);
+    // Get keywords with minimum accessCount threshold (default: 2)
+    const minAccessCount = parseInt(process.env.MIN_KEYWORD_ACCESS_COUNT || '2');
+    const keywords = await getTopKeywordsFromCache(minAccessCount);
 
-    if (topKeywords.length === 0) {
-      console.log('[Scheduler] ⚠️  No keywords found in cache yet');
+    if (keywords.length === 0) {
+      console.log(`[Scheduler] ⚠️  No keywords found with accessCount >= ${minAccessCount}`);
       return;
     }
 
-    console.log(`\n[Scheduler] 📋 Found ${topKeywords.length} keywords to scrape:`);
-    console.log(`[Scheduler] ${topKeywords.map(k => `"${k.keyword}"`).join(', ')}\n`);
+    console.log(`\n[Scheduler] 📋 Found ${keywords.length} keywords to scrape (accessCount >= ${minAccessCount}):`);
+    console.log(`[Scheduler] ${keywords.map(k => `"${k.keyword}"(${k.accessCount})`).join(', ')}\n`);
 
     // Scrape each keyword
     let successCount = 0;
     let failureCount = 0;
 
-    for (let i = 0; i < topKeywords.length; i++) {
-      const item = topKeywords[i];
-      process.stdout.write(`[Scheduler] Progress: [${String(i + 1).padStart(2)}/${topKeywords.length}] `);
+    for (let i = 0; i < keywords.length; i++) {
+      const item = keywords[i];
+      process.stdout.write(`[Scheduler] Progress: [${String(i + 1).padStart(3)}/${keywords.length}] `);
       try {
         await scrapeKeywordForAllPlatforms(item.keyword);
         successCount++;
@@ -126,12 +127,12 @@ export async function scrapeTopKeywords(): Promise<void> {
 
     const duration = Math.round((Date.now() - startTime) / 1000);
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`[Scheduler] ✅ TOP 50 scraping run completed`);
+    console.log(`[Scheduler] ✅ Keyword scraping run completed`);
+    console.log(`[Scheduler]   📊 Total: ${keywords.length} | Success: ${successCount} | Failed: ${failureCount}`);
     console.log(`[Scheduler]   ⏱️  Duration: ${duration}s`);
-    console.log(`[Scheduler]   📊 Success: ${successCount} | Failed: ${failureCount}`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
   } catch (error) {
     const duration = Math.round((Date.now() - startTime) / 1000);
-    console.error(`\n[Scheduler] ❌ Error in TOP 50 scraping after ${duration}s:`, error);
+    console.error(`\n[Scheduler] ❌ Error in keyword scraping after ${duration}s:`, error);
   }
 }

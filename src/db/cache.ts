@@ -257,10 +257,11 @@ export async function clearAllCache(): Promise<number> {
 }
 
 /**
- * Get top keywords from video_cache by accessCount (조회 횟수)
+ * Get keywords from video_cache by accessCount (조회 횟수)
  * Groups by query (keyword) and sums up accessCount across all platforms
+ * Filters by minimum accessCount threshold (no hard limit on count)
  */
-export async function getTopKeywordsFromCache(limit: number = 50): Promise<{
+export async function getTopKeywordsFromCache(minAccessCount: number = 2): Promise<{
   keyword: string;
   accessCount: number;
   videoCount: number;
@@ -281,10 +282,12 @@ export async function getTopKeywordsFromCache(limit: number = 50): Promise<{
         },
       },
       {
-        $sort: { accessCount: -1 }, // 조회 횟수 기준 정렬
+        $match: {
+          accessCount: { $gte: minAccessCount }, // 최소 접근 횟수 필터
+        },
       },
       {
-        $limit: limit,
+        $sort: { accessCount: -1 }, // 조회 횟수 기준 정렬
       },
     ])
     .toArray()) as Array<{

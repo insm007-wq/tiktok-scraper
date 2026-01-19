@@ -15,10 +15,10 @@ export async function initializeScheduler(): Promise<void> {
   const timestamp = new Date().toISOString();
   console.log(`\n[Scheduler] ⏱️  ${timestamp} - Initializing scheduler...\n`);
 
-  // Schedule recurring scraping: every 6 hours (0 */6 * * *)
-  // This means at minute 0 of every 6th hour (00:00, 06:00, 12:00, 18:00)
-  const cronExpression = '0 */6 * * *';
-  const intervalHours = parseInt(process.env.SCRAPE_INTERVAL_HOURS || '6');
+  // Schedule recurring scraping: every 12 hours (0 */12 * * *)
+  // This means at minute 0 of every 12th hour (00:00, 12:00)
+  const cronExpression = '0 */12 * * *';
+  const intervalHours = parseInt(process.env.SCRAPE_INTERVAL_HOURS || '12');
 
   schedulerTask = cron.schedule(cronExpression, async () => {
     const startTime = Date.now();
