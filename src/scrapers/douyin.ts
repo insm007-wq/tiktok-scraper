@@ -93,8 +93,20 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
       return [];
     }
 
+    let thumbnailCount = 0;
+    let noThumbnailCount = 0;
+
     const results = dataset.slice(0, limit).map((item: any, index: number) => {
       const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
+      const thumbnail = item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined;
+
+      // Track thumbnail statistics
+      if (thumbnail) {
+        thumbnailCount++;
+      } else {
+        noThumbnailCount++;
+      }
+
       return {
         id: item.id || `douyin-video-${index}`,
         title: item.text || item.desc || item.description || `영상 ${index + 1}`,
@@ -109,11 +121,13 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
         createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
         videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
         hashtags: hashtags,
-        thumbnail: item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined,
+        thumbnail: thumbnail,
         videoUrl: item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined,
         webVideoUrl: item.url || undefined,
       };
     });
+
+    console.log(`[Douyin] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
 
     return results;
   } catch (error) {
@@ -211,8 +225,20 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
 
     if (uniqueItems.length === 0) return [];
 
+    let thumbnailCount = 0;
+    let noThumbnailCount = 0;
+
     const results = uniqueItems.slice(0, limit).map((item: any, index: number) => {
       const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
+      const thumbnail = item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined;
+
+      // Track thumbnail statistics
+      if (thumbnail) {
+        thumbnailCount++;
+      } else {
+        noThumbnailCount++;
+      }
+
       return {
         id: item.id || `douyin-video-${index}`,
         title: item.text || item.desc || item.description || `영상 ${index + 1}`,
@@ -227,7 +253,7 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
         createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
         videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
         hashtags: hashtags,
-        thumbnail: item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined,
+        thumbnail: thumbnail,
         videoUrl: item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined,
         webVideoUrl: item.url || undefined,
       };
@@ -235,6 +261,7 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
 
     const endTime = Date.now();
     const duration = endTime - startTime;
+    console.log(`[Douyin Parallel] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
     console.log(`[Douyin Parallel] ✅ 최종 완료: ${results.length}개 (${(duration / 1000).toFixed(2)}초)`);
 
     return results;

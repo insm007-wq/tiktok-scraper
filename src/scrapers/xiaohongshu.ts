@@ -68,33 +68,46 @@ export async function searchXiaohongshuVideos(query: string, limit: number, apiK
       return [];
     }
 
-    const results = dataset
+    const filteredDataset = dataset
       .filter((item: any) => {
         return item.item?.note_card?.type === "video" || item.item?.type === "video" || !!item.item?.video?.media;
       })
-      .slice(0, limit)
-      .map((item: any, index: number) => {
-        const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
-        const thumbnail = item.item?.video?.media?.cover || item.item?.note_card?.cover?.url_default;
+      .slice(0, limit);
 
-        return {
-          id: item.item?.id || item.id || `xiaohongshu-${index}`,
-          title: title,
-          description: title,
-          creator: item.item?.note_card?.user?.nickname || "Unknown",
-          creatorUrl: item.item?.note_card?.user?.avatar || undefined,
-          playCount: parseInt(item.item?.note_card?.interact_info?.play_count || 0),
-          likeCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),
-          commentCount: parseInt(item.item?.note_card?.interact_info?.comment_count || 0),
-          shareCount: parseInt(item.item?.note_card?.interact_info?.shared_count || 0),
-          createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
-          videoDuration: item.item?.video?.media?.duration || 0,
-          hashtags: [],
-          thumbnail: thumbnail,
-          videoUrl: undefined,
-          webVideoUrl: item.link || item.postUrl || item.url || undefined,
-        } as VideoResult;
-      });
+    let thumbnailCount = 0;
+    let noThumbnailCount = 0;
+
+    const results = filteredDataset.map((item: any, index: number) => {
+      const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
+      const thumbnail = item.item?.video?.media?.cover || item.item?.note_card?.cover?.url_default;
+
+      // Track thumbnail statistics
+      if (thumbnail) {
+        thumbnailCount++;
+      } else {
+        noThumbnailCount++;
+      }
+
+      return {
+        id: item.item?.id || item.id || `xiaohongshu-${index}`,
+        title: title,
+        description: title,
+        creator: item.item?.note_card?.user?.nickname || "Unknown",
+        creatorUrl: item.item?.note_card?.user?.avatar || undefined,
+        playCount: parseInt(item.item?.note_card?.interact_info?.play_count || 0),
+        likeCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),
+        commentCount: parseInt(item.item?.note_card?.interact_info?.comment_count || 0),
+        shareCount: parseInt(item.item?.note_card?.interact_info?.shared_count || 0),
+        createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
+        videoDuration: item.item?.video?.media?.duration || 0,
+        hashtags: [],
+        thumbnail: thumbnail,
+        videoUrl: undefined,
+        webVideoUrl: item.link || item.postUrl || item.url || undefined,
+      } as VideoResult;
+    });
+
+    console.log(`[Xiaohongshu] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
 
     return results;
   } catch (error) {
@@ -186,9 +199,19 @@ export async function searchXiaohongshuVideosParallel(
       return item.item?.note_card?.type === "video" || item.item?.type === "video" || !!item.item?.video?.media;
     });
 
+    let thumbnailCount = 0;
+    let noThumbnailCount = 0;
+
     const results = videoOnlyDataset.map((item: any, index: number) => {
       const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
       const thumbnail = item.item?.video?.media?.cover || item.item?.note_card?.cover?.url_default;
+
+      // Track thumbnail statistics
+      if (thumbnail) {
+        thumbnailCount++;
+      } else {
+        noThumbnailCount++;
+      }
 
       return {
         id: item.item?.id || item.id || `xiaohongshu-${index}`,
@@ -211,6 +234,7 @@ export async function searchXiaohongshuVideosParallel(
 
     const uniqueResults = Array.from(new Map(results.map((video: any) => [video.id, video])).values());
 
+    console.log(`[Xiaohongshu Parallel] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
     console.log(`[Xiaohongshu Parallel] ✅ 완료: ${uniqueResults.length}개`);
     return uniqueResults as VideoResult[];
   } catch (error) {

@@ -67,6 +67,16 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
         }),
     ]);
 
+    // Calculate thumbnail stats before saving
+    const getThumbnailStats = (videos: VideoResult[]) => {
+      const withThumbnail = videos.filter(v => v.thumbnail).length;
+      return { withThumbnail, total: videos.length };
+    };
+
+    const tiktokStats = getThumbnailStats(results.tiktok);
+    const douyinStats = getThumbnailStats(results.douyin);
+    const xiaohongshuStats = getThumbnailStats(results.xiaohongshu);
+
     // Save results to database
     await Promise.all([
       saveCache('tiktok', keyword, results.tiktok),
@@ -77,7 +87,7 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
     const duration = Date.now() - startTime;
     console.log(`\n[Scraper] ✨ Completed: "${keyword}" in ${(duration / 1000).toFixed(2)}s`);
     console.log(`[Scraper]   📊 Total: ${results.tiktok.length + results.douyin.length + results.xiaohongshu.length} videos`);
-    console.log(`[Scraper]   • TikTok: ${results.tiktok.length} | Douyin: ${results.douyin.length} | Xiaohongshu: ${results.xiaohongshu.length}\n`);
+    console.log(`[Scraper]   • TikTok: ${results.tiktok.length} (🎬 ${tiktokStats.withThumbnail}/${tiktokStats.total}) | Douyin: ${results.douyin.length} (🎬 ${douyinStats.withThumbnail}/${douyinStats.total}) | Xiaohongshu: ${results.xiaohongshu.length} (🎬 ${xiaohongshuStats.withThumbnail}/${xiaohongshuStats.total})\n`);
 
     return results;
   } catch (error) {

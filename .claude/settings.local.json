@@ -27,7 +27,8 @@
       "Bash(timeout 15 npm run dev:*)",
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
-      "Bash(timeout 20 npm run dev)"
+      "Bash(timeout 20 npm run dev)",
+      "WebSearch"
     ]
   }
 }

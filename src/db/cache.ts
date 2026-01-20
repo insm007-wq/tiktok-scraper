@@ -59,11 +59,43 @@ export async function saveCache(
   // Merge videos: update existing by ID, add new ones
   const existingDoc = await collection.findOne({ cacheKey });
   let mergedVideos = videos;
+  let thumbnailPreservedCount = 0;
+  let thumbnailLostCount = 0;
 
   if (existingDoc && existingDoc.videos) {
     const videoMap = new Map(videos.map(v => [v.id, v]));
-    // Keep existing videos that are not in the new list, but update if they are
-    mergedVideos = existingDoc.videos.map(existing => videoMap.get(existing.id) || existing);
+
+    // Selective merge: preserve important fields if new data has undefined
+    mergedVideos = existingDoc.videos.map(existing => {
+      const newVideo = videoMap.get(existing.id);
+      if (!newVideo) return existing;
+
+      // Preserve optional fields if new data is undefined
+      const merged = { ...newVideo };
+
+      // 썸네일 병합: 새 데이터가 undefined면 기존 값 유지
+      if (!newVideo.thumbnail && existing.thumbnail) {
+        merged.thumbnail = existing.thumbnail;
+        thumbnailPreservedCount++;
+      } else if (newVideo.thumbnail && !existing.thumbnail) {
+        thumbnailLostCount++;
+      } else if (!newVideo.thumbnail && !existing.thumbnail) {
+        thumbnailLostCount++;
+      }
+
+      // 비디오 URL 병합: 새 데이터가 undefined면 기존 값 유지
+      if (!newVideo.videoUrl && existing.videoUrl) {
+        merged.videoUrl = existing.videoUrl;
+      }
+
+      // 크리에이터 URL 병합: 새 데이터가 undefined면 기존 값 유지
+      if (!newVideo.creatorUrl && existing.creatorUrl) {
+        merged.creatorUrl = existing.creatorUrl;
+      }
+
+      return merged;
+    });
+
     // Add new videos
     const existingIds = new Set(existingDoc.videos.map(v => v.id));
     videos.forEach(video => {
@@ -71,6 +103,14 @@ export async function saveCache(
         mergedVideos.push(video);
       }
     });
+
+    // Log merge statistics
+    console.log(
+      `[Cache] 📊 Merge stats for "${cacheKey}":` +
+      ` ${mergedVideos.length} total videos` +
+      ` | 🎬 Thumbnails preserved: ${thumbnailPreservedCount}` +
+      ` | ⚠️ Missing: ${thumbnailLostCount}`
+    );
   }
 
   await collection.updateOne(

@@ -99,6 +99,10 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       return [];
     }
 
+    let thumbnailCount = 0;
+    let noThumbnailCount = 0;
+    let videoDurationStats = { total: 0, count: 0 };
+
     const results = dataset.slice(0, Math.min(limit, 60)).map((item: any, index: number) => {
       const hashtags = Array.isArray(item.hashtags)
         ? item.hashtags
@@ -108,6 +112,23 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
 
       const videoUrl = item.video?.url || item.downloadUrl || item.videoUrl || undefined;
       const webVideoUrl = item.postPage || (item.channel?.url && item.id ? `${item.channel.url}/video/${item.id}` : undefined) || undefined;
+
+      // Extended thumbnail fallback chain (same as Douyin)
+      const thumbnail = item.video?.thumbnail || item.video?.cover || item.cover || item.coverUrl || undefined;
+
+      // Track thumbnail statistics
+      if (thumbnail) {
+        thumbnailCount++;
+      } else {
+        noThumbnailCount++;
+      }
+
+      // Track video duration stats
+      const duration = item.video?.duration ? parseInt(String(item.video.duration)) : 0;
+      if (duration > 0) {
+        videoDurationStats.total += duration;
+        videoDurationStats.count++;
+      }
 
       return {
         id: item.id || `video-${index}`,
@@ -121,9 +142,9 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
         commentCount: parseInt(String(item.comments || 0)),
         shareCount: parseInt(String(item.shares || 0)),
         createTime: item.uploadedAt ? parseInt(String(item.uploadedAt)) * 1000 : Date.now(),
-        videoDuration: item.video?.duration ? parseInt(String(item.video.duration)) : 0,
+        videoDuration: duration,
         hashtags: hashtags,
-        thumbnail: item.video?.thumbnail || item.video?.cover || undefined,
+        thumbnail: thumbnail,
         videoUrl: videoUrl,
         webVideoUrl: webVideoUrl,
       };
@@ -131,9 +152,12 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
 
     const runDuration = (Date.now() - runStartTime) / 1000;
     const totalDuration = Date.now() - startTime;
+    const avgDuration = videoDurationStats.count > 0 ? (videoDurationStats.total / videoDurationStats.count).toFixed(0) : 0;
+
     console.log(`[TikTok] ✅ Run completed in ${runDuration.toFixed(2)}s`);
     console.log(`[TikTok] Raw items: ${dataset.length}, Final: ${results.length}`);
-    console.log(`[TikTok] Yield: ${((results.length / 60) * 100).toFixed(1)}%`);
+    console.log(`[TikTok] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
+    console.log(`[TikTok] ⏱️  Avg duration: ${avgDuration}s | Yield: ${((results.length / 60) * 100).toFixed(1)}%`);
 
     return results;
   } catch (error) {
