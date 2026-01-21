@@ -25,7 +25,7 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
       searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
       maxItemsPerUrl: 40,
       shouldDownloadVideos: true,
-      shouldDownloadCovers: false,
+      shouldDownloadCovers: true,
     };
 
     const runRes = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`, {
@@ -93,18 +93,48 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
       return [];
     }
 
+    // Phase 1-A: Raw API response sample logging
+    if (dataset.length > 0) {
+      console.log(`[Douyin] 📦 Raw API response sample (first 3 items):`);
+      dataset.slice(0, 3).forEach((item: any, idx: number) => {
+        const sampleStr = JSON.stringify(item, null, 2);
+        console.log(`[Douyin]   Item #${idx}: ${sampleStr.substring(0, 500)}${sampleStr.length > 500 ? "..." : ""}`);
+      });
+    }
+
     let thumbnailCount = 0;
     let noThumbnailCount = 0;
 
     const results = dataset.slice(0, limit).map((item: any, index: number) => {
       const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
-      const thumbnail = item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined;
+      // Extended thumbnail fallback chain (Phase 3 expansion)
+      const thumbnail =
+        item.videoMeta?.cover ||
+        item.videoMeta?.originCover ||
+        item.thumb ||
+        item.cover ||
+        item.coverUrl ||
+        item.video?.cover ||
+        item.videoMeta?.dynamicCover ||
+        item.dynamicCover ||
+        undefined;
 
       // Track thumbnail statistics
       if (thumbnail) {
         thumbnailCount++;
       } else {
         noThumbnailCount++;
+
+        // Phase 1-B: Fallback chain tracking (first 5 missing cases)
+        if (noThumbnailCount <= 5) {
+          const thumbnailSources = {
+            'videoMeta.cover': item.videoMeta?.cover,
+            'videoMeta.originCover': item.videoMeta?.originCover,
+            'thumb': item.thumb,
+          };
+          console.warn(`[Douyin] ⚠️ Missing thumbnail for video ${item.id || index}:`);
+          console.warn(`[Douyin]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
+        }
       }
 
       return {
@@ -164,7 +194,7 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
         searchPublishTimeFilter: mapSearchPublishTimeFilter(dateRange),
         maxItemsPerUrl: 20,
         shouldDownloadVideos: true,
-        shouldDownloadCovers: false,
+        shouldDownloadCovers: true,
       };
 
       const runRes = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}`, {
@@ -216,6 +246,16 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
       const datasetRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apiKey}`);
       // ✨ [수정] as any 추가
       const dataset = (await datasetRes.json()) as any;
+
+      // Phase 1-A: Raw API response sample logging (only for first run)
+      if (Array.isArray(dataset) && dataset.length > 0 && sortFilter === "most_liked") {
+        console.log(`[Douyin Parallel] 📦 Raw API response sample (${sortFilter}, first 2 items):`);
+        dataset.slice(0, 2).forEach((item: any, idx: number) => {
+          const sampleStr = JSON.stringify(item, null, 2);
+          console.log(`[Douyin Parallel]   Item #${idx}: ${sampleStr.substring(0, 400)}${sampleStr.length > 400 ? "..." : ""}`);
+        });
+      }
+
       return Array.isArray(dataset) ? dataset : [];
     });
 
@@ -230,13 +270,34 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
 
     const results = uniqueItems.slice(0, limit).map((item: any, index: number) => {
       const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
-      const thumbnail = item.videoMeta?.cover || item.videoMeta?.originCover || item.thumb || undefined;
+      // Extended thumbnail fallback chain (Phase 3 expansion)
+      const thumbnail =
+        item.videoMeta?.cover ||
+        item.videoMeta?.originCover ||
+        item.thumb ||
+        item.cover ||
+        item.coverUrl ||
+        item.video?.cover ||
+        item.videoMeta?.dynamicCover ||
+        item.dynamicCover ||
+        undefined;
 
       // Track thumbnail statistics
       if (thumbnail) {
         thumbnailCount++;
       } else {
         noThumbnailCount++;
+
+        // Phase 1-B: Fallback chain tracking (first 5 missing cases)
+        if (noThumbnailCount <= 5) {
+          const thumbnailSources = {
+            'videoMeta.cover': item.videoMeta?.cover,
+            'videoMeta.originCover': item.videoMeta?.originCover,
+            'thumb': item.thumb,
+          };
+          console.warn(`[Douyin Parallel] ⚠️ Missing thumbnail for video ${item.id || index}:`);
+          console.warn(`[Douyin Parallel]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
+        }
       }
 
       return {

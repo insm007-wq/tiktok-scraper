@@ -131,16 +131,32 @@ export async function scrapeTopKeywords(): Promise<void> {
     );
     console.log(`[Scheduler] ${keywords.map(k => `"${k.keyword}"(${k.accessCount})`).join(', ')}\n`);
 
-    // Scrape each keyword
+    // Scrape each keyword and collect statistics
     let successCount = 0;
     let failureCount = 0;
+
+    // Phase 4: Track cumulative thumbnail statistics
+    const thumbnailStats = {
+      tiktok: { total: 0, withThumbnail: 0 },
+      douyin: { total: 0, withThumbnail: 0 },
+    };
 
     for (let i = 0; i < keywords.length; i++) {
       const item = keywords[i];
       process.stdout.write(`[Scheduler] Progress: [${String(i + 1).padStart(3)}/${keywords.length}] `);
       try {
-        await scrapeKeywordForAllPlatforms(item.keyword);
+        const result = await scrapeKeywordForAllPlatforms(item.keyword);
         successCount++;
+
+        // Collect thumbnail statistics
+        const getThumbnailStats = (videos: VideoResult[]) => {
+          return videos.filter(v => v.thumbnail).length;
+        };
+
+        thumbnailStats.tiktok.total += result.tiktok.length;
+        thumbnailStats.tiktok.withThumbnail += getThumbnailStats(result.tiktok);
+        thumbnailStats.douyin.total += result.douyin.length;
+        thumbnailStats.douyin.withThumbnail += getThumbnailStats(result.douyin);
       } catch (error) {
         console.error(`\n[Scheduler] ❌ Failed to scrape "${item.keyword}":`, error);
         failureCount++;
@@ -152,6 +168,28 @@ export async function scrapeTopKeywords(): Promise<void> {
     console.log(`[Scheduler] ✅ Keyword scraping run completed`);
     console.log(`[Scheduler]   📊 Total: ${keywords.length} | Success: ${successCount} | Failed: ${failureCount}`);
     console.log(`[Scheduler]   ⏱️  Duration: ${duration}s`);
+
+    // Phase 4: Display aggregated thumbnail quality report
+    const calcPercentage = (withThumbnail: number, total: number) => {
+      return total > 0 ? ((withThumbnail / total) * 100).toFixed(1) : '0.0';
+    };
+
+    console.log(`\n[Scheduler] 📊 Thumbnail Quality Report:`);
+    console.log(
+      `[Scheduler]   🎬 TikTok:      ${thumbnailStats.tiktok.withThumbnail}/${thumbnailStats.tiktok.total} ` +
+      `(${calcPercentage(thumbnailStats.tiktok.withThumbnail, thumbnailStats.tiktok.total)}%)`
+    );
+    console.log(
+      `[Scheduler]   🎬 Douyin:      ${thumbnailStats.douyin.withThumbnail}/${thumbnailStats.douyin.total} ` +
+      `(${calcPercentage(thumbnailStats.douyin.withThumbnail, thumbnailStats.douyin.total)}%)`
+    );
+
+    const totalVideos = thumbnailStats.tiktok.total + thumbnailStats.douyin.total;
+    const totalWithThumbnail = thumbnailStats.tiktok.withThumbnail + thumbnailStats.douyin.withThumbnail;
+    console.log(
+      `[Scheduler]   📈 Overall:    ${totalWithThumbnail}/${totalVideos} ` +
+      `(${calcPercentage(totalWithThumbnail, totalVideos)}%)`
+    );
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
   } catch (error) {
     const duration = Math.round((Date.now() - startTime) / 1000);

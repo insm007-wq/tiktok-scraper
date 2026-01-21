@@ -99,6 +99,15 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       return [];
     }
 
+    // Phase 1-A: Raw API response sample logging
+    if (dataset.length > 0) {
+      console.log(`[TikTok] 📦 Raw API response sample (first 3 items):`);
+      dataset.slice(0, 3).forEach((item: any, idx: number) => {
+        const sampleStr = JSON.stringify(item, null, 2);
+        console.log(`[TikTok]   Item #${idx}: ${sampleStr.substring(0, 500)}${sampleStr.length > 500 ? "..." : ""}`);
+      });
+    }
+
     let thumbnailCount = 0;
     let noThumbnailCount = 0;
     let videoDurationStats = { total: 0, count: 0 };
@@ -113,14 +122,35 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       const videoUrl = item.video?.url || item.downloadUrl || item.videoUrl || undefined;
       const webVideoUrl = item.postPage || (item.channel?.url && item.id ? `${item.channel.url}/video/${item.id}` : undefined) || undefined;
 
-      // Extended thumbnail fallback chain (same as Douyin)
-      const thumbnail = item.video?.thumbnail || item.video?.cover || item.cover || item.coverUrl || undefined;
+      // Extended thumbnail fallback chain (Phase 3 expansion)
+      const thumbnail =
+        item.video?.thumbnail ||
+        item.video?.cover ||
+        item.cover ||
+        item.coverUrl ||
+        item.video?.dynamicCover ||
+        item.video?.originCover ||
+        item.thumbnail ||
+        item.dynamicCover ||
+        undefined;
 
       // Track thumbnail statistics
       if (thumbnail) {
         thumbnailCount++;
       } else {
         noThumbnailCount++;
+
+        // Phase 1-B: Fallback chain tracking (first 5 missing cases)
+        if (noThumbnailCount <= 5) {
+          const thumbnailSources = {
+            'video.thumbnail': item.video?.thumbnail,
+            'video.cover': item.video?.cover,
+            'cover': item.cover,
+            'coverUrl': item.coverUrl,
+          };
+          console.warn(`[TikTok] ⚠️ Missing thumbnail for video ${item.id || index}:`);
+          console.warn(`[TikTok]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
+        }
       }
 
       // Track video duration stats
