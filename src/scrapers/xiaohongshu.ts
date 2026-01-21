@@ -107,7 +107,7 @@ export async function searchXiaohongshuVideos(query: string, limit: number, apiK
       } as VideoResult;
     });
 
-    console.log(`[Xiaohongshu] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
+    console.log(`[Xiaohongshu] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%) | ⚠️ Missing: ${noThumbnailCount}`);
 
     return results;
   } catch (error) {
@@ -234,7 +234,7 @@ export async function searchXiaohongshuVideosParallel(
 
     const uniqueResults = Array.from(new Map(results.map((video: any) => [video.id, video])).values());
 
-    console.log(`[Xiaohongshu Parallel] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
+    console.log(`[Xiaohongshu Parallel] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%) | ⚠️ Missing: ${noThumbnailCount}`);
     console.log(`[Xiaohongshu Parallel] ✅ 완료: ${uniqueResults.length}개`);
     return uniqueResults as VideoResult[];
   } catch (error) {

@@ -156,7 +156,7 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
 
     console.log(`[TikTok] ✅ Run completed in ${runDuration.toFixed(2)}s`);
     console.log(`[TikTok] Raw items: ${dataset.length}, Final: ${results.length}`);
-    console.log(`[TikTok] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
+    console.log(`[TikTok] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%) | ⚠️ Missing: ${noThumbnailCount}`);
     console.log(`[TikTok] ⏱️  Avg duration: ${avgDuration}s | Yield: ${((results.length / 60) * 100).toFixed(1)}%`);
 
     return results;

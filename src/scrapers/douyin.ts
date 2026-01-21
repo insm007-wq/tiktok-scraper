@@ -127,7 +127,7 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
       };
     });
 
-    console.log(`[Douyin] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
+    console.log(`[Douyin] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%) | ⚠️ Missing: ${noThumbnailCount}`);
 
     return results;
   } catch (error) {
@@ -261,7 +261,7 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
 
     const endTime = Date.now();
     const duration = endTime - startTime;
-    console.log(`[Douyin Parallel] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%)`);
+    console.log(`[Douyin Parallel] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%) | ⚠️ Missing: ${noThumbnailCount}`);
     console.log(`[Douyin Parallel] ✅ 최종 완료: ${results.length}개 (${(duration / 1000).toFixed(2)}초)`);
 
     return results;
