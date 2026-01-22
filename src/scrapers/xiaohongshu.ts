@@ -205,9 +205,6 @@ export async function searchXiaohongshuVideosParallel(
       return item.item?.note_card?.type === "video" || item.item?.type === "video" || !!item.item?.video?.media;
     });
 
-    let thumbnailCount = 0;
-    let noThumbnailCount = 0;
-
     const results = await Promise.all(
       videoOnlyDataset.map(async (item: any, index: number) => {
         const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
@@ -215,13 +212,6 @@ export async function searchXiaohongshuVideosParallel(
 
         // Upload to R2 and get permanent URL
         const r2Media = await uploadMediaToR2(xiaohongshuThumbnail, undefined);
-
-        // Track thumbnail statistics
-        if (r2Media.thumbnail) {
-          thumbnailCount++;
-        } else {
-          noThumbnailCount++;
-        }
 
         return {
           id: item.item?.id || item.id || `xiaohongshu-${index}`,
@@ -245,7 +235,11 @@ export async function searchXiaohongshuVideosParallel(
 
     const uniqueResults = Array.from(new Map(results.map((video: any) => [video.id, video])).values());
 
-    console.log(`[Xiaohongshu Parallel] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%) | ⚠️ Missing: ${noThumbnailCount}`);
+    // Calculate thumbnail statistics after all uploads complete
+    const thumbnailCount = uniqueResults.filter(v => v.thumbnail).length;
+    const noThumbnailCount = uniqueResults.filter(v => !v.thumbnail).length;
+
+    console.log(`[Xiaohongshu Parallel] 🎬 Thumbnails: ${thumbnailCount}/${uniqueResults.length} (${uniqueResults.length > 0 ? ((thumbnailCount / uniqueResults.length) * 100).toFixed(1) : 0}%) | ⚠️ Missing: ${noThumbnailCount}`);
     console.log(`[Xiaohongshu Parallel] ✅ 완료: ${uniqueResults.length}개`);
     return uniqueResults as VideoResult[];
   } catch (error) {
