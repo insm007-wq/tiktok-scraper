@@ -46,7 +46,13 @@ export async function uploadToR2(
   type: 'thumbnail' | 'video'
 ): Promise<string | undefined> {
   try {
-    if (!tiktokUrl) return undefined;
+    console.log(`[R2] Starting upload for ${type}...`);
+    console.log(`[R2] Config: Bucket=${BUCKET_NAME}, Domain=${PUBLIC_DOMAIN}`);
+
+    if (!tiktokUrl) {
+      console.warn(`[R2] URL is empty for ${type}`);
+      return undefined;
+    }
 
     // 파일 경로 생성: {type}/{hash}.{ext}
     const hash = generateFileHash(tiktokUrl);
@@ -60,6 +66,7 @@ export async function uploadToR2(
     }
 
     // TikTok CDN에서 다운로드
+    console.log(`[R2] Downloading from TikTok...`);
     const response = await fetch(tiktokUrl, {
       headers: {
         'Referer': 'https://www.tiktok.com/',
@@ -68,14 +75,16 @@ export async function uploadToR2(
     });
 
     if (!response.ok) {
-      console.error(`[R2] Failed to download from TikTok: ${response.status}`);
+      console.error(`[R2] ❌ Failed to download from TikTok: ${response.status}`);
       return undefined;
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
     const contentType = type === 'thumbnail' ? 'image/jpeg' : 'video/mp4';
+    console.log(`[R2] Downloaded: ${(buffer.length / 1024).toFixed(1)}KB`);
 
     // R2에 업로드
+    console.log(`[R2] Uploading to R2: ${key}...`);
     await r2Client.send(new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
@@ -88,7 +97,7 @@ export async function uploadToR2(
     console.log(`[R2] ✅ Uploaded ${type}: ${key} (${(buffer.length / 1024).toFixed(1)}KB)`);
     return publicUrl;
   } catch (error) {
-    console.error(`[R2] Upload failed for ${type}:`, error);
+    console.error(`[R2] ❌ Upload failed for ${type}:`, error instanceof Error ? error.message : error);
     return undefined;
   }
 }
