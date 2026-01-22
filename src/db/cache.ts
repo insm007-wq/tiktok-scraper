@@ -1,6 +1,7 @@
 import { Collection, ObjectId } from 'mongodb';
 import { getDatabase } from './connection';
 import { VideoResult } from '../types/video';
+import { deleteMultipleFromR2 } from '../storage/r2';
 
 /**
  * Cache Document structure
@@ -83,6 +84,15 @@ export async function saveCache(
         thumbnailLostCount++;
       }
 
+      // 🔍 Debug: Log first few merged videos with thumbnail status
+      if (existing.id === videos[0]?.id) {
+        console.log(`[Cache] 🔍 Merge debug for "${cacheKey}" first video:`);
+        console.log(`[Cache]   ID: ${existing.id}`);
+        console.log(`[Cache]   New thumbnail: ${newVideo.thumbnail ? '✓ ' + String(newVideo.thumbnail).substring(0, 80) : '✗'}`);
+        console.log(`[Cache]   Existing thumbnail: ${existing.thumbnail ? '✓ ' + String(existing.thumbnail).substring(0, 80) : '✗'}`);
+        console.log(`[Cache]   Merged thumbnail: ${merged.thumbnail ? '✓ ' + String(merged.thumbnail).substring(0, 80) : '✗'}`);
+      }
+
       // 비디오 URL 병합: 새 데이터가 undefined면 기존 값 유지
       if (!newVideo.videoUrl && existing.videoUrl) {
         merged.videoUrl = existing.videoUrl;
@@ -111,6 +121,24 @@ export async function saveCache(
       ` | 🎬 Thumbnails preserved: ${thumbnailPreservedCount}` +
       ` | ⚠️ Missing: ${thumbnailLostCount}`
     );
+  }
+
+  // 🔍 Debug: Check thumbnail before saving
+  const thumbnailStats = {
+    total: mergedVideos.length,
+    withThumbnail: mergedVideos.filter(v => v.thumbnail).length,
+  };
+  console.log(
+    `[Cache] 🔍 Pre-save check for "${cacheKey}": ${thumbnailStats.withThumbnail}/${thumbnailStats.total} with thumbnail`
+  );
+
+  // 🔍 Debug: Log first video before save
+  if (mergedVideos.length > 0) {
+    const firstVideo = mergedVideos[0];
+    console.log(`[Cache] 🔍 First video before save:`);
+    console.log(`[Cache]   ID: ${firstVideo.id}`);
+    console.log(`[Cache]   Title: ${firstVideo.title?.substring(0, 60)}`);
+    console.log(`[Cache]   Thumbnail: ${firstVideo.thumbnail ? '✓ ' + String(firstVideo.thumbnail).substring(0, 100) : '✗ MISSING'}`);
   }
 
   await collection.updateOne(
@@ -284,6 +312,130 @@ export async function deleteExpiredCache(): Promise<number> {
   }
 
   return result.deletedCount;
+}
+
+/**
+ * Delete expired caches with R2 file cleanup
+ */
+export async function deleteExpiredCacheWithR2(): Promise<{
+  deletedCaches: number;
+  deletedFiles: number;
+}> {
+  const collection = getCacheCollection();
+  const now = new Date();
+
+  const expiredDocs = await collection.find({
+    expiresAt: { $lt: now },
+  }).toArray();
+
+  if (expiredDocs.length === 0) {
+    return { deletedCaches: 0, deletedFiles: 0 };
+  }
+
+  // R2 URL 수집
+  const r2Urls: string[] = [];
+  expiredDocs.forEach(doc => {
+    doc.videos.forEach(video => {
+      if (video.thumbnail?.includes('.r2.')) r2Urls.push(video.thumbnail);
+      if (video.videoUrl?.includes('.r2.')) r2Urls.push(video.videoUrl);
+    });
+  });
+
+  // MongoDB 삭제
+  const result = await collection.deleteMany({
+    expiresAt: { $lt: now },
+  });
+
+  // R2 삭제
+  const deletedFiles = await deleteMultipleFromR2(r2Urls);
+
+  console.log(`[Cache] ✅ Deleted ${result.deletedCount} expired caches`);
+  console.log(`[Cache] 📁 Deleted ${deletedFiles} files from R2`);
+
+  return { deletedCaches: result.deletedCount, deletedFiles };
+}
+
+/**
+ * Delete specific cache with R2 file cleanup
+ */
+export async function deleteCacheWithR2(
+  platform: string,
+  query: string,
+  dateRange: string = 'all'
+): Promise<{ deletedCache: boolean; deletedFiles: number }> {
+  const collection = getCacheCollection();
+  const cacheKey = generateCacheKey(platform, query, dateRange);
+
+  // 캐시 조회
+  const doc = await collection.findOne({ cacheKey });
+
+  if (!doc) {
+    return { deletedCache: false, deletedFiles: 0 };
+  }
+
+  // R2 URL 수집
+  const r2Urls: string[] = [];
+  doc.videos.forEach(video => {
+    if (video.thumbnail?.includes('.r2.')) {
+      r2Urls.push(video.thumbnail);
+    }
+    if (video.videoUrl?.includes('.r2.')) {
+      r2Urls.push(video.videoUrl);
+    }
+  });
+
+  // MongoDB에서 삭제
+  await collection.deleteOne({ cacheKey });
+
+  // R2에서 삭제
+  const deletedFiles = await deleteMultipleFromR2(r2Urls);
+
+  console.log(`[Cache] ✅ Deleted cache: ${cacheKey}`);
+  console.log(`[Cache] 📁 Deleted ${deletedFiles} files from R2`);
+
+  return { deletedCache: true, deletedFiles };
+}
+
+/**
+ * Clean up stale cache (no access for N days)
+ */
+export async function cleanupStaleCache(daysInactive: number = 30): Promise<{
+  deletedCaches: number;
+  deletedFiles: number;
+}> {
+  const collection = getCacheCollection();
+  const threshold = new Date();
+  threshold.setDate(threshold.getDate() - daysInactive);
+
+  const staleDocs = await collection.find({
+    lastAccessedAt: { $lt: threshold },
+  }).toArray();
+
+  if (staleDocs.length === 0) {
+    return { deletedCaches: 0, deletedFiles: 0 };
+  }
+
+  // R2 URL 수집
+  const r2Urls: string[] = [];
+  staleDocs.forEach(doc => {
+    doc.videos.forEach(video => {
+      if (video.thumbnail?.includes('.r2.')) r2Urls.push(video.thumbnail);
+      if (video.videoUrl?.includes('.r2.')) r2Urls.push(video.videoUrl);
+    });
+  });
+
+  // MongoDB 삭제
+  const result = await collection.deleteMany({
+    lastAccessedAt: { $lt: threshold },
+  });
+
+  // R2 삭제
+  const deletedFiles = await deleteMultipleFromR2(r2Urls);
+
+  console.log(`[Cache] ✅ Deleted ${result.deletedCount} stale caches (>${daysInactive} days inactive)`);
+  console.log(`[Cache] 📁 Deleted ${deletedFiles} files from R2`);
+
+  return { deletedCaches: result.deletedCount, deletedFiles };
 }
 
 /**

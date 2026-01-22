@@ -1,4 +1,5 @@
 import { VideoResult } from "../types/video";
+import { uploadMediaToR2 } from "../storage/r2";
 
 /**
  * TikTok 영상 검색
@@ -99,12 +100,36 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       return [];
     }
 
-    // Phase 1-A: Raw API response sample logging
+    // Phase 1-A: Raw API response sample logging - Focus on thumbnail fields
     if (dataset.length > 0) {
-      console.log(`[TikTok] 📦 Raw API response sample (first 3 items):`);
-      dataset.slice(0, 3).forEach((item: any, idx: number) => {
-        const sampleStr = JSON.stringify(item, null, 2);
-        console.log(`[TikTok]   Item #${idx}: ${sampleStr.substring(0, 500)}${sampleStr.length > 500 ? "..." : ""}`);
+      console.log(`[TikTok] 📦 API Response Analysis (first 5 items):`);
+      dataset.slice(0, 5).forEach((item: any, idx: number) => {
+        const allFields = Object.keys(item).join(", ");
+        console.log(`[TikTok]   Item #${idx} fields: ${allFields}`);
+
+        // Check all possible thumbnail fields
+        const thumbnailFields: Record<string, any> = {
+          'item.video?.thumbnail': item.video?.thumbnail,
+          'item.video?.cover': item.video?.cover,
+          'item.cover': item.cover,
+          'item.coverUrl': item.coverUrl,
+          'item.video?.dynamicCover': item.video?.dynamicCover,
+          'item.video?.originCover': item.video?.originCover,
+          'item.thumbnail': item.thumbnail,
+          'item.dynamicCover': item.dynamicCover,
+        };
+
+        console.log(`[TikTok]   Item #${idx} thumbnails:`);
+        Object.entries(thumbnailFields).forEach(([field, value]) => {
+          if (value) {
+            console.log(`[TikTok]     ✓ ${field}: ${String(value).substring(0, 100)}`);
+          }
+        });
+
+        // Log complete video object keys if video exists
+        if (item.video) {
+          console.log(`[TikTok]   Item #${idx} video fields: ${Object.keys(item.video).join(", ")}`);
+        }
       });
     }
 
@@ -112,73 +137,89 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
     let noThumbnailCount = 0;
     let videoDurationStats = { total: 0, count: 0 };
 
-    const results = dataset.slice(0, Math.min(limit, 60)).map((item: any, index: number) => {
-      const hashtags = Array.isArray(item.hashtags)
-        ? item.hashtags
-            .filter((h: any) => h !== null && h !== undefined)
-            .map((h: any) => (typeof h === "string" ? h : h && h.name ? h.name : h))
-        : [];
+    const results = await Promise.all(
+      dataset.slice(0, Math.min(limit, 60)).map(async (item: any, index: number) => {
+        const hashtags = Array.isArray(item.hashtags)
+          ? item.hashtags
+              .filter((h: any) => h !== null && h !== undefined)
+              .map((h: any) => (typeof h === "string" ? h : h && h.name ? h.name : h))
+          : [];
 
-      const videoUrl = item.video?.url || item.downloadUrl || item.videoUrl || undefined;
-      const webVideoUrl = item.postPage || (item.channel?.url && item.id ? `${item.channel.url}/video/${item.id}` : undefined) || undefined;
+        const videoUrl = item.video?.url || item.downloadUrl || item.videoUrl || undefined;
+        const webVideoUrl = item.postPage || (item.channel?.url && item.id ? `${item.channel.url}/video/${item.id}` : undefined) || undefined;
 
-      // Extended thumbnail fallback chain (Phase 3 expansion)
-      const thumbnail =
-        item.video?.thumbnail ||
-        item.video?.cover ||
-        item.cover ||
-        item.coverUrl ||
-        item.video?.dynamicCover ||
-        item.video?.originCover ||
-        item.thumbnail ||
-        item.dynamicCover ||
-        undefined;
+        // Extended thumbnail fallback chain (Phase 3 expansion)
+        const tiktokThumbnail =
+          item.video?.thumbnail ||
+          item.video?.cover ||
+          item.cover ||
+          item.coverUrl ||
+          item.video?.dynamicCover ||
+          item.video?.originCover ||
+          item.thumbnail ||
+          item.dynamicCover ||
+          undefined;
 
-      // Track thumbnail statistics
-      if (thumbnail) {
-        thumbnailCount++;
-      } else {
-        noThumbnailCount++;
+        // Upload to R2 and get permanent URLs
+        const r2Media = await uploadMediaToR2(tiktokThumbnail, videoUrl);
 
-        // Phase 1-B: Fallback chain tracking (first 5 missing cases)
-        if (noThumbnailCount <= 5) {
-          const thumbnailSources = {
-            'video.thumbnail': item.video?.thumbnail,
-            'video.cover': item.video?.cover,
-            'cover': item.cover,
-            'coverUrl': item.coverUrl,
-          };
-          console.warn(`[TikTok] ⚠️ Missing thumbnail for video ${item.id || index}:`);
-          console.warn(`[TikTok]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
+        // Track thumbnail statistics
+        if (r2Media.thumbnail) {
+          thumbnailCount++;
+        } else {
+          noThumbnailCount++;
+
+          // Phase 1-B: Fallback chain tracking (first 5 missing cases)
+          if (noThumbnailCount <= 5) {
+            const thumbnailSources = {
+              'video.thumbnail': item.video?.thumbnail,
+              'video.cover': item.video?.cover,
+              'cover': item.cover,
+              'coverUrl': item.coverUrl,
+            };
+            console.warn(`[TikTok] ⚠️ Failed to upload thumbnail for video ${item.id || index}:`);
+            console.warn(`[TikTok]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
+          }
         }
-      }
 
-      // Track video duration stats
-      const duration = item.video?.duration ? parseInt(String(item.video.duration)) : 0;
-      if (duration > 0) {
-        videoDurationStats.total += duration;
-        videoDurationStats.count++;
-      }
+        // Track video duration stats
+        const duration = item.video?.duration ? parseInt(String(item.video.duration)) : 0;
+        if (duration > 0) {
+          videoDurationStats.total += duration;
+          videoDurationStats.count++;
+        }
 
-      return {
-        id: item.id || `video-${index}`,
-        title: item.title || `영상 ${index + 1}`,
-        description: item.title || "",
-        creator: item.channel?.name || item.channel?.username || "Unknown",
-        creatorUrl: item.channel?.url || undefined,
-        followerCount: item.channel?.followers ? parseInt(String(item.channel.followers)) : undefined,
-        playCount: parseInt(String(item.views || 0)),
-        likeCount: parseInt(String(item.likes || 0)),
-        commentCount: parseInt(String(item.comments || 0)),
-        shareCount: parseInt(String(item.shares || 0)),
-        createTime: item.uploadedAt ? parseInt(String(item.uploadedAt)) * 1000 : Date.now(),
-        videoDuration: duration,
-        hashtags: hashtags,
-        thumbnail: thumbnail,
-        videoUrl: videoUrl,
-        webVideoUrl: webVideoUrl,
-      };
-    });
+        const videoResult = {
+          id: item.id || `video-${index}`,
+          title: item.title || `영상 ${index + 1}`,
+          description: item.title || "",
+          creator: item.channel?.name || item.channel?.username || "Unknown",
+          creatorUrl: item.channel?.url || undefined,
+          followerCount: item.channel?.followers ? parseInt(String(item.channel.followers)) : undefined,
+          playCount: parseInt(String(item.views || 0)),
+          likeCount: parseInt(String(item.likes || 0)),
+          commentCount: parseInt(String(item.comments || 0)),
+          shareCount: parseInt(String(item.shares || 0)),
+          createTime: item.uploadedAt ? parseInt(String(item.uploadedAt)) * 1000 : Date.now(),
+          videoDuration: duration,
+          hashtags: hashtags,
+          thumbnail: r2Media.thumbnail,
+          videoUrl: r2Media.video || videoUrl,
+          webVideoUrl: webVideoUrl,
+        };
+
+        // 🔍 Debug: Log actual saved object for first 3 videos
+        if (index < 3) {
+          console.log(`[TikTok] 🔍 Actual object being saved - Video #${index}:`);
+          console.log(`[TikTok]   ID: ${videoResult.id}`);
+          console.log(`[TikTok]   Title: ${videoResult.title?.substring(0, 60)}`);
+          console.log(`[TikTok]   Thumbnail: ${videoResult.thumbnail ? videoResult.thumbnail.substring(0, 100) : 'FAILED'}`);
+          console.log(`[TikTok]   VideoUrl: ${videoResult.videoUrl ? videoResult.videoUrl.substring(0, 100) : 'FAILED'}`);
+        }
+
+        return videoResult;
+      })
+    );
 
     const runDuration = (Date.now() - runStartTime) / 1000;
     const totalDuration = Date.now() - startTime;

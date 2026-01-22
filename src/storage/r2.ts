@@ -1,0 +1,166 @@
+import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import crypto from 'crypto';
+
+const r2Client = new S3Client({
+  region: 'auto',
+  endpoint: process.env.R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+});
+
+const BUCKET_NAME = process.env.R2_BUCKET_NAME || 'tiktok-videos-storage';
+const PUBLIC_DOMAIN = process.env.R2_PUBLIC_DOMAIN || 'https://pub-e7c1a9fcc1354653a54a231bf19ecf7b.r2.dev';
+
+/**
+ * 파일 해시 생성 (중복 방지)
+ */
+function generateFileHash(url: string): string {
+  return crypto.createHash('sha256').update(url).digest('hex').substring(0, 16);
+}
+
+/**
+ * R2에 파일이 이미 존재하는지 확인
+ */
+async function fileExists(key: string): Promise<boolean> {
+  try {
+    await r2Client.send(new HeadObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+    }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * TikTok URL에서 파일 다운로드 후 R2에 업로드
+ * @param tiktokUrl - TikTok CDN URL
+ * @param type - 'thumbnail' | 'video'
+ * @returns R2 public URL or undefined
+ */
+export async function uploadToR2(
+  tiktokUrl: string,
+  type: 'thumbnail' | 'video'
+): Promise<string | undefined> {
+  try {
+    if (!tiktokUrl) return undefined;
+
+    // 파일 경로 생성: {type}/{hash}.{ext}
+    const hash = generateFileHash(tiktokUrl);
+    const ext = type === 'thumbnail' ? 'jpg' : 'mp4';
+    const key = `${type}s/${hash}.${ext}`;
+
+    // 이미 존재하면 기존 URL 반환
+    if (await fileExists(key)) {
+      console.log(`[R2] File already exists: ${key}`);
+      return `${PUBLIC_DOMAIN}/${key}`;
+    }
+
+    // TikTok CDN에서 다운로드
+    const response = await fetch(tiktokUrl, {
+      headers: {
+        'Referer': 'https://www.tiktok.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`[R2] Failed to download from TikTok: ${response.status}`);
+      return undefined;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const contentType = type === 'thumbnail' ? 'image/jpeg' : 'video/mp4';
+
+    // R2에 업로드
+    await r2Client.send(new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      CacheControl: 'public, max-age=31536000', // 1년 캐싱
+    }));
+
+    const publicUrl = `${PUBLIC_DOMAIN}/${key}`;
+    console.log(`[R2] ✅ Uploaded ${type}: ${key} (${(buffer.length / 1024).toFixed(1)}KB)`);
+    return publicUrl;
+  } catch (error) {
+    console.error(`[R2] Upload failed for ${type}:`, error);
+    return undefined;
+  }
+}
+
+/**
+ * 썸네일과 비디오를 병렬로 업로드
+ */
+export async function uploadMediaToR2(
+  thumbnailUrl?: string,
+  videoUrl?: string
+): Promise<{ thumbnail?: string; video?: string }> {
+  const [thumbnail, video] = await Promise.all([
+    thumbnailUrl ? uploadToR2(thumbnailUrl, 'thumbnail') : Promise.resolve(undefined),
+    videoUrl ? uploadToR2(videoUrl, 'video') : Promise.resolve(undefined),
+  ]);
+
+  return { thumbnail, video };
+}
+
+/**
+ * R2에서 파일 삭제
+ */
+export async function deleteFromR2(r2Url: string): Promise<boolean> {
+  try {
+    // URL에서 key 추출
+    // 예: "https://pub-xxx.r2.dev/thumbnails/abc123.jpg" → "thumbnails/abc123.jpg"
+    const url = new URL(r2Url);
+    const key = url.pathname.substring(1); // 앞의 '/' 제거
+
+    await r2Client.send(new DeleteObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+    }));
+
+    console.log(`[R2] ✅ Deleted: ${key}`);
+    return true;
+  } catch (error) {
+    console.error(`[R2] Delete failed:`, error);
+    return false;
+  }
+}
+
+/**
+ * 여러 파일 일괄 삭제 (최대 1000개)
+ */
+export async function deleteMultipleFromR2(r2Urls: string[]): Promise<number> {
+  try {
+    const keys = r2Urls
+      .map(url => {
+        try {
+          const u = new URL(url);
+          return u.pathname.substring(1);
+        } catch {
+          return null;
+        }
+      })
+      .filter(k => k !== null);
+
+    if (keys.length === 0) return 0;
+
+    await r2Client.send(new DeleteObjectsCommand({
+      Bucket: BUCKET_NAME,
+      Delete: {
+        Objects: keys.map(key => ({ Key: key! })),
+        Quiet: true,
+      },
+    }));
+
+    console.log(`[R2] ✅ Deleted ${keys.length} files`);
+    return keys.length;
+  } catch (error) {
+    console.error(`[R2] Batch delete failed:`, error);
+    return 0;
+  }
+}

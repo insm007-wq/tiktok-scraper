@@ -1,4 +1,5 @@
 import { VideoResult } from "../types/video";
+import { uploadMediaToR2 } from "../storage/r2";
 
 /**
  * Douyin 영상 검색
@@ -105,57 +106,65 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
     let thumbnailCount = 0;
     let noThumbnailCount = 0;
 
-    const results = dataset.slice(0, limit).map((item: any, index: number) => {
-      const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
-      // Extended thumbnail fallback chain (Phase 3 expansion)
-      const thumbnail =
-        item.videoMeta?.cover ||
-        item.videoMeta?.originCover ||
-        item.thumb ||
-        item.cover ||
-        item.coverUrl ||
-        item.video?.cover ||
-        item.videoMeta?.dynamicCover ||
-        item.dynamicCover ||
-        undefined;
+    const results = await Promise.all(
+      dataset.slice(0, limit).map(async (item: any, index: number) => {
+        const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
 
-      // Track thumbnail statistics
-      if (thumbnail) {
-        thumbnailCount++;
-      } else {
-        noThumbnailCount++;
+        // Extended thumbnail fallback chain (Phase 3 expansion)
+        const douyinThumbnail =
+          item.videoMeta?.cover ||
+          item.videoMeta?.originCover ||
+          item.thumb ||
+          item.cover ||
+          item.coverUrl ||
+          item.video?.cover ||
+          item.videoMeta?.dynamicCover ||
+          item.dynamicCover ||
+          undefined;
 
-        // Phase 1-B: Fallback chain tracking (first 5 missing cases)
-        if (noThumbnailCount <= 5) {
-          const thumbnailSources = {
-            'videoMeta.cover': item.videoMeta?.cover,
-            'videoMeta.originCover': item.videoMeta?.originCover,
-            'thumb': item.thumb,
-          };
-          console.warn(`[Douyin] ⚠️ Missing thumbnail for video ${item.id || index}:`);
-          console.warn(`[Douyin]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
+        const videoUrl = item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined;
+
+        // Upload to R2 and get permanent URLs
+        const r2Media = await uploadMediaToR2(douyinThumbnail, videoUrl);
+
+        // Track thumbnail statistics
+        if (r2Media.thumbnail) {
+          thumbnailCount++;
+        } else {
+          noThumbnailCount++;
+
+          // Phase 1-B: Fallback chain tracking (first 5 missing cases)
+          if (noThumbnailCount <= 5) {
+            const thumbnailSources = {
+              'videoMeta.cover': item.videoMeta?.cover,
+              'videoMeta.originCover': item.videoMeta?.originCover,
+              'thumb': item.thumb,
+            };
+            console.warn(`[Douyin] ⚠️ Failed to upload thumbnail for video ${item.id || index}:`);
+            console.warn(`[Douyin]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
+          }
         }
-      }
 
-      return {
-        id: item.id || `douyin-video-${index}`,
-        title: item.text || item.desc || item.description || `영상 ${index + 1}`,
-        description: item.text || item.desc || "",
-        creator: item.authorMeta?.name || item.authorName || "Unknown",
-        creatorUrl: item.authorMeta?.avatarLarge || item.authorUrl || undefined,
-        followerCount: item.authorMeta?.followersCount ? parseInt(item.authorMeta.followersCount) : undefined,
-        playCount: parseInt(item.statistics?.diggCount || 0),
-        likeCount: parseInt(item.statistics?.diggCount || 0),
-        commentCount: parseInt(item.statistics?.commentCount || 0),
-        shareCount: parseInt(item.statistics?.shareCount || 0),
-        createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
-        videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
-        hashtags: hashtags,
-        thumbnail: thumbnail,
-        videoUrl: item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined,
-        webVideoUrl: item.url || undefined,
-      };
-    });
+        return {
+          id: item.id || `douyin-video-${index}`,
+          title: item.text || item.desc || item.description || `영상 ${index + 1}`,
+          description: item.text || item.desc || "",
+          creator: item.authorMeta?.name || item.authorName || "Unknown",
+          creatorUrl: item.authorMeta?.avatarLarge || item.authorUrl || undefined,
+          followerCount: item.authorMeta?.followersCount ? parseInt(item.authorMeta.followersCount) : undefined,
+          playCount: parseInt(item.statistics?.diggCount || 0),
+          likeCount: parseInt(item.statistics?.diggCount || 0),
+          commentCount: parseInt(item.statistics?.commentCount || 0),
+          shareCount: parseInt(item.statistics?.shareCount || 0),
+          createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
+          videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
+          hashtags: hashtags,
+          thumbnail: r2Media.thumbnail,
+          videoUrl: r2Media.video || videoUrl,
+          webVideoUrl: item.url || undefined,
+        };
+      })
+    );
 
     console.log(`[Douyin] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%) | ⚠️ Missing: ${noThumbnailCount}`);
 
@@ -268,57 +277,65 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
     let thumbnailCount = 0;
     let noThumbnailCount = 0;
 
-    const results = uniqueItems.slice(0, limit).map((item: any, index: number) => {
-      const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
-      // Extended thumbnail fallback chain (Phase 3 expansion)
-      const thumbnail =
-        item.videoMeta?.cover ||
-        item.videoMeta?.originCover ||
-        item.thumb ||
-        item.cover ||
-        item.coverUrl ||
-        item.video?.cover ||
-        item.videoMeta?.dynamicCover ||
-        item.dynamicCover ||
-        undefined;
+    const results = await Promise.all(
+      uniqueItems.slice(0, limit).map(async (item: any, index: number) => {
+        const hashtags = item.hashtags?.map((h: any) => (typeof h === "string" ? h : h.name)) || [];
 
-      // Track thumbnail statistics
-      if (thumbnail) {
-        thumbnailCount++;
-      } else {
-        noThumbnailCount++;
+        // Extended thumbnail fallback chain (Phase 3 expansion)
+        const douyinThumbnail =
+          item.videoMeta?.cover ||
+          item.videoMeta?.originCover ||
+          item.thumb ||
+          item.cover ||
+          item.coverUrl ||
+          item.video?.cover ||
+          item.videoMeta?.dynamicCover ||
+          item.dynamicCover ||
+          undefined;
 
-        // Phase 1-B: Fallback chain tracking (first 5 missing cases)
-        if (noThumbnailCount <= 5) {
-          const thumbnailSources = {
-            'videoMeta.cover': item.videoMeta?.cover,
-            'videoMeta.originCover': item.videoMeta?.originCover,
-            'thumb': item.thumb,
-          };
-          console.warn(`[Douyin Parallel] ⚠️ Missing thumbnail for video ${item.id || index}:`);
-          console.warn(`[Douyin Parallel]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
+        const videoUrl = item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined;
+
+        // Upload to R2 and get permanent URLs
+        const r2Media = await uploadMediaToR2(douyinThumbnail, videoUrl);
+
+        // Track thumbnail statistics
+        if (r2Media.thumbnail) {
+          thumbnailCount++;
+        } else {
+          noThumbnailCount++;
+
+          // Phase 1-B: Fallback chain tracking (first 5 missing cases)
+          if (noThumbnailCount <= 5) {
+            const thumbnailSources = {
+              'videoMeta.cover': item.videoMeta?.cover,
+              'videoMeta.originCover': item.videoMeta?.originCover,
+              'thumb': item.thumb,
+            };
+            console.warn(`[Douyin Parallel] ⚠️ Failed to upload thumbnail for video ${item.id || index}:`);
+            console.warn(`[Douyin Parallel]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
+          }
         }
-      }
 
-      return {
-        id: item.id || `douyin-video-${index}`,
-        title: item.text || item.desc || item.description || `영상 ${index + 1}`,
-        description: item.text || item.desc || "",
-        creator: item.authorMeta?.name || item.authorName || "Unknown",
-        creatorUrl: item.authorMeta?.avatarLarge || item.authorUrl || undefined,
-        followerCount: item.authorMeta?.followersCount ? parseInt(item.authorMeta.followersCount) : undefined,
-        playCount: parseInt(item.statistics?.diggCount || 0),
-        likeCount: parseInt(item.statistics?.diggCount || 0),
-        commentCount: parseInt(item.statistics?.commentCount || 0),
-        shareCount: parseInt(item.statistics?.shareCount || 0),
-        createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
-        videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
-        hashtags: hashtags,
-        thumbnail: thumbnail,
-        videoUrl: item.videoMeta?.playUrl || item.video?.url || item.downloadUrl || item.playUrl || undefined,
-        webVideoUrl: item.url || undefined,
-      };
-    });
+        return {
+          id: item.id || `douyin-video-${index}`,
+          title: item.text || item.desc || item.description || `영상 ${index + 1}`,
+          description: item.text || item.desc || "",
+          creator: item.authorMeta?.name || item.authorName || "Unknown",
+          creatorUrl: item.authorMeta?.avatarLarge || item.authorUrl || undefined,
+          followerCount: item.authorMeta?.followersCount ? parseInt(item.authorMeta.followersCount) : undefined,
+          playCount: parseInt(item.statistics?.diggCount || 0),
+          likeCount: parseInt(item.statistics?.diggCount || 0),
+          commentCount: parseInt(item.statistics?.commentCount || 0),
+          shareCount: parseInt(item.statistics?.shareCount || 0),
+          createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
+          videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
+          hashtags: hashtags,
+          thumbnail: r2Media.thumbnail,
+          videoUrl: r2Media.video || videoUrl,
+          webVideoUrl: item.url || undefined,
+        };
+      })
+    );
 
     const endTime = Date.now();
     const duration = endTime - startTime;

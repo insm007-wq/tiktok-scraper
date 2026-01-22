@@ -4,10 +4,12 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import scrapeRouter from './routes/scrape';
 import videosRouter from './routes/videos';
+import cacheRouter from './routes/cache';
 import { errorHandler } from './middleware/errorHandler';
 import { validateEnvironment } from './config/environment';
 import { initializeDatabase, closeDatabase } from './db/connection';
 import { initializeScheduler, stopScheduler } from './scheduler/scheduler';
+import './scheduler/cleanup'; // Initialize cleanup schedulers
 
 dotenv.config();
 
@@ -92,6 +94,7 @@ app.get('/debug/apify-token', async (req, res) => {
 // Routes
 app.use('/api', scrapeRouter);
 app.use('/api/videos', videosRouter);
+app.use('/api/cache', cacheRouter);
 
 // 404 handler
 app.use((req, res) => {

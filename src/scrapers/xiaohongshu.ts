@@ -1,5 +1,6 @@
 import { VideoResult } from "../types/video";
 import { parseXiaohongshuTime } from "../utils/xiaohongshuTimeParser";
+import { uploadMediaToR2 } from "../storage/r2";
 
 export async function searchXiaohongshuVideos(query: string, limit: number, apiKey: string, dateRange?: string): Promise<VideoResult[]> {
   try {
@@ -77,35 +78,40 @@ export async function searchXiaohongshuVideos(query: string, limit: number, apiK
     let thumbnailCount = 0;
     let noThumbnailCount = 0;
 
-    const results = filteredDataset.map((item: any, index: number) => {
-      const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
-      const thumbnail = item.item?.video?.media?.cover || item.item?.note_card?.cover?.url_default;
+    const results = await Promise.all(
+      filteredDataset.map(async (item: any, index: number) => {
+        const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
+        const xiaohongshuThumbnail = item.item?.video?.media?.cover || item.item?.note_card?.cover?.url_default;
 
-      // Track thumbnail statistics
-      if (thumbnail) {
-        thumbnailCount++;
-      } else {
-        noThumbnailCount++;
-      }
+        // Upload to R2 and get permanent URL
+        const r2Media = await uploadMediaToR2(xiaohongshuThumbnail, undefined);
 
-      return {
-        id: item.item?.id || item.id || `xiaohongshu-${index}`,
-        title: title,
-        description: title,
-        creator: item.item?.note_card?.user?.nickname || "Unknown",
-        creatorUrl: item.item?.note_card?.user?.avatar || undefined,
-        playCount: parseInt(item.item?.note_card?.interact_info?.play_count || 0),
-        likeCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),
-        commentCount: parseInt(item.item?.note_card?.interact_info?.comment_count || 0),
-        shareCount: parseInt(item.item?.note_card?.interact_info?.shared_count || 0),
-        createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
-        videoDuration: item.item?.video?.media?.duration || 0,
-        hashtags: [],
-        thumbnail: thumbnail,
-        videoUrl: undefined,
-        webVideoUrl: item.link || item.postUrl || item.url || undefined,
-      } as VideoResult;
-    });
+        // Track thumbnail statistics
+        if (r2Media.thumbnail) {
+          thumbnailCount++;
+        } else {
+          noThumbnailCount++;
+        }
+
+        return {
+          id: item.item?.id || item.id || `xiaohongshu-${index}`,
+          title: title,
+          description: title,
+          creator: item.item?.note_card?.user?.nickname || "Unknown",
+          creatorUrl: item.item?.note_card?.user?.avatar || undefined,
+          playCount: parseInt(item.item?.note_card?.interact_info?.play_count || 0),
+          likeCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),
+          commentCount: parseInt(item.item?.note_card?.interact_info?.comment_count || 0),
+          shareCount: parseInt(item.item?.note_card?.interact_info?.shared_count || 0),
+          createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
+          videoDuration: item.item?.video?.media?.duration || 0,
+          hashtags: [],
+          thumbnail: r2Media.thumbnail,
+          videoUrl: undefined,
+          webVideoUrl: item.link || item.postUrl || item.url || undefined,
+        } as VideoResult;
+      })
+    );
 
     console.log(`[Xiaohongshu] 🎬 Thumbnails: ${thumbnailCount}/${results.length} (${results.length > 0 ? ((thumbnailCount / results.length) * 100).toFixed(1) : 0}%) | ⚠️ Missing: ${noThumbnailCount}`);
 
@@ -202,35 +208,40 @@ export async function searchXiaohongshuVideosParallel(
     let thumbnailCount = 0;
     let noThumbnailCount = 0;
 
-    const results = videoOnlyDataset.map((item: any, index: number) => {
-      const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
-      const thumbnail = item.item?.video?.media?.cover || item.item?.note_card?.cover?.url_default;
+    const results = await Promise.all(
+      videoOnlyDataset.map(async (item: any, index: number) => {
+        const title = item.item?.note_card?.display_title || item.item?.title || `포스트 ${index + 1}`;
+        const xiaohongshuThumbnail = item.item?.video?.media?.cover || item.item?.note_card?.cover?.url_default;
 
-      // Track thumbnail statistics
-      if (thumbnail) {
-        thumbnailCount++;
-      } else {
-        noThumbnailCount++;
-      }
+        // Upload to R2 and get permanent URL
+        const r2Media = await uploadMediaToR2(xiaohongshuThumbnail, undefined);
 
-      return {
-        id: item.item?.id || item.id || `xiaohongshu-${index}`,
-        title: title,
-        description: title,
-        creator: item.item?.note_card?.user?.nickname || "Unknown",
-        creatorUrl: item.item?.note_card?.user?.avatar || undefined,
-        playCount: parseInt(item.item?.note_card?.interact_info?.play_count || 0),
-        likeCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),
-        commentCount: parseInt(item.item?.note_card?.interact_info?.comment_count || 0),
-        shareCount: parseInt(item.item?.note_card?.interact_info?.shared_count || 0),
-        createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
-        videoDuration: item.item?.video?.media?.duration || 0,
-        hashtags: [],
-        thumbnail: thumbnail,
-        videoUrl: undefined,
-        webVideoUrl: item.link || item.postUrl || item.url || undefined,
-      };
-    });
+        // Track thumbnail statistics
+        if (r2Media.thumbnail) {
+          thumbnailCount++;
+        } else {
+          noThumbnailCount++;
+        }
+
+        return {
+          id: item.item?.id || item.id || `xiaohongshu-${index}`,
+          title: title,
+          description: title,
+          creator: item.item?.note_card?.user?.nickname || "Unknown",
+          creatorUrl: item.item?.note_card?.user?.avatar || undefined,
+          playCount: parseInt(item.item?.note_card?.interact_info?.play_count || 0),
+          likeCount: parseInt(item.item?.note_card?.interact_info?.liked_count || 0),
+          commentCount: parseInt(item.item?.note_card?.interact_info?.comment_count || 0),
+          shareCount: parseInt(item.item?.note_card?.interact_info?.shared_count || 0),
+          createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
+          videoDuration: item.item?.video?.media?.duration || 0,
+          hashtags: [],
+          thumbnail: r2Media.thumbnail,
+          videoUrl: undefined,
+          webVideoUrl: item.link || item.postUrl || item.url || undefined,
+        };
+      })
+    );
 
     const uniqueResults = Array.from(new Map(results.map((video: any) => [video.id, video])).values());
 
