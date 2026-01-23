@@ -65,14 +65,35 @@ export async function uploadToR2(
       return `${PUBLIC_DOMAIN}/${key}`;
     }
 
-    // TikTok CDN에서 다운로드
+    // TikTok CDN에서 다운로드 (플랫폼별 헤더)
     console.log(`[R2] Downloading from TikTok...`);
-    const response = await fetch(tiktokUrl, {
-      headers: {
-        'Referer': 'https://www.tiktok.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    });
+
+    // 플랫폼별 헤더 생성
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    };
+
+    // URL 기반으로 플랫폼별 Referer 설정
+    if (tiktokUrl.includes('douyinpic.com') || tiktokUrl.includes('douyin.com')) {
+      headers['Referer'] = 'https://www.douyin.com/';
+      headers['Origin'] = 'https://www.douyin.com';
+      console.log(`[R2] Platform detected: Douyin`);
+    } else if (tiktokUrl.includes('xiaohongshu') || tiktokUrl.includes('xhscdn')) {
+      headers['Referer'] = 'https://www.xiaohongshu.com/';
+      headers['Origin'] = 'https://www.xiaohongshu.com';
+      console.log(`[R2] Platform detected: Xiaohongshu`);
+    } else {
+      headers['Referer'] = 'https://www.tiktok.com/';
+      headers['Origin'] = 'https://www.tiktok.com';
+      console.log(`[R2] Platform detected: TikTok`);
+    }
+
+    // 이미지 타입일 경우 Accept 헤더 추가
+    if (type === 'thumbnail') {
+      headers['Accept'] = 'image/webp,image/apng,image/avif,image/*,*/*;q=0.8';
+    }
+
+    const response = await fetch(tiktokUrl, { headers });
 
     if (!response.ok) {
       console.error(`[R2] ❌ Failed to download from TikTok: ${response.status}`);

@@ -203,7 +203,7 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
           createTime: item.uploadedAt ? parseInt(String(item.uploadedAt)) * 1000 : Date.now(),
           videoDuration: duration,
           hashtags: hashtags,
-          thumbnail: r2Media.thumbnail,
+          thumbnail: r2Media.thumbnail || tiktokThumbnail,
           videoUrl: r2Media.video || videoUrl,
           webVideoUrl: webVideoUrl,
         };

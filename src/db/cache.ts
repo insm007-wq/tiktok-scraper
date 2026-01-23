@@ -74,13 +74,26 @@ export async function saveCache(
       // Preserve optional fields if new data is undefined
       const merged = { ...newVideo };
 
-      // 썸네일 병합: 새 데이터가 undefined면 기존 값 유지
-      if (!newVideo.thumbnail && existing.thumbnail) {
+      // 썸네일 병합 (우선순위: R2 URL > 새 URL > 기존 URL)
+      // 1단계: 기존에 R2 URL이 있으면 무조건 유지
+      if (existing.thumbnail && existing.thumbnail.includes('r2.dev')) {
+        merged.thumbnail = existing.thumbnail;
+        if (!newVideo.thumbnail || !newVideo.thumbnail.includes('r2.dev')) {
+          thumbnailPreservedCount++;
+        }
+      }
+      // 2단계: 새로 업로드된 URL이 있으면 사용
+      else if (newVideo.thumbnail) {
+        merged.thumbnail = newVideo.thumbnail;
+      }
+      // 3단계: 그래도 없으면 기존 URL 유지
+      else if (existing.thumbnail) {
         merged.thumbnail = existing.thumbnail;
         thumbnailPreservedCount++;
-      } else if (newVideo.thumbnail && !existing.thumbnail) {
-        thumbnailLostCount++;
-      } else if (!newVideo.thumbnail && !existing.thumbnail) {
+      }
+
+      // 손실된 썸네일 추적
+      if (!merged.thumbnail && existing.thumbnail) {
         thumbnailLostCount++;
       }
 

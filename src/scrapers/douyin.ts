@@ -159,7 +159,7 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
           createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
           videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
           hashtags: hashtags,
-          thumbnail: r2Media.thumbnail,
+          thumbnail: r2Media.thumbnail || douyinThumbnail,
           videoUrl: r2Media.video || videoUrl,
           webVideoUrl: item.url || undefined,
         };
@@ -330,7 +330,7 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
           createTime: item.createTime ? parseInt(item.createTime) * 1000 : Date.now(),
           videoDuration: parseInt(item.videoMeta?.duration || item.duration || 0),
           hashtags: hashtags,
-          thumbnail: r2Media.thumbnail,
+          thumbnail: r2Media.thumbnail || douyinThumbnail,
           videoUrl: r2Media.video || videoUrl,
           webVideoUrl: item.url || undefined,
         };

@@ -106,7 +106,7 @@ export async function searchXiaohongshuVideos(query: string, limit: number, apiK
           createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
           videoDuration: item.item?.video?.media?.duration || 0,
           hashtags: [],
-          thumbnail: r2Media.thumbnail,
+          thumbnail: r2Media.thumbnail || xiaohongshuThumbnail,
           videoUrl: undefined,
           webVideoUrl: item.link || item.postUrl || item.url || undefined,
         } as VideoResult;
@@ -226,7 +226,7 @@ export async function searchXiaohongshuVideosParallel(
           createTime: parseXiaohongshuTime(item.item?.note_card?.corner_tag_info),
           videoDuration: item.item?.video?.media?.duration || 0,
           hashtags: [],
-          thumbnail: r2Media.thumbnail,
+          thumbnail: r2Media.thumbnail || xiaohongshuThumbnail,
           videoUrl: undefined,
           webVideoUrl: item.link || item.postUrl || item.url || undefined,
         };
