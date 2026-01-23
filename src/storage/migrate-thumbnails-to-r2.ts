@@ -8,14 +8,19 @@
  * 또는: npm run migrate:thumbnails
  */
 
-import { getDatabase } from '../db/connection';
+import dotenv from 'dotenv';
+import { initializeDatabase, closeDatabase, getDatabase } from '../db/connection';
 import { uploadMediaToR2 } from './r2';
 import { CacheDocument } from '../db/cache';
+
+dotenv.config();
 
 async function migrateThumbnailsToR2() {
   try {
     console.log(`\n📦 Thumbnail Migration to R2\n`);
 
+    // Initialize database connection
+    await initializeDatabase();
     const db = getDatabase();
     const collection = db.collection('video_cache');
 
@@ -45,25 +50,25 @@ async function migrateThumbnailsToR2() {
       const updatedVideos = await Promise.all(
         cache.videos.map(async (video: any) => {
           // 이미 R2 URL이면 스킵
-          if (video.thumbnail && video.thumbnail.includes('r2.dev')) {
+          if (video.thumbnail && typeof video.thumbnail === 'string' && video.thumbnail.includes('r2.dev')) {
             totalSkipped++;
             return video;
           }
 
           // CDN URL이 없으면 스킵
-          if (!video.thumbnail) {
-            console.log(`  ⏭️  Video ${video.id}: No thumbnail`);
+          if (!video.thumbnail || typeof video.thumbnail !== 'string') {
+            console.log(`  ⏭️  Video ${video.id}: No valid thumbnail`);
             totalSkipped++;
             return video;
           }
 
           try {
             console.log(`  ⬆️  Uploading thumbnail for ${video.id}...`);
-            const r2Url = await uploadMediaToR2(video.thumbnail, 'thumbnail');
+            const result = await uploadMediaToR2(video.thumbnail, undefined);
 
-            if (r2Url) {
+            if (result.thumbnail) {
               totalMigrated++;
-              return { ...video, thumbnail: r2Url };
+              return { ...video, thumbnail: result.thumbnail };
             } else {
               console.log(`  ⚠️  Failed to upload: ${video.id}`);
               totalFailed++;
@@ -98,6 +103,8 @@ async function migrateThumbnailsToR2() {
   } catch (error) {
     console.error(`\n❌ Migration failed:`, error instanceof Error ? error.message : error);
     process.exit(1);
+  } finally {
+    await closeDatabase();
   }
 }
 

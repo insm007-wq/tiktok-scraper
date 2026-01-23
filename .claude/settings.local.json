@@ -28,7 +28,20 @@
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
       "Bash(timeout 20 npm run dev)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(node test-r2-headers.js:*)",
+      "Bash(node:*)",
+      "Bash(bash:*)",
+      "Bash(pkill:*)",
+      "Bash(git checkout:*)",
+      "Bash(dir /s /b \"D:\\\\project\\\\tiktok-scraper\")",
+      "Bash(findstr:*)",
+      "Bash(dir D:project)",
+      "Bash(git -C D:/project/tiktok-scraper ls-files:*)",
+      "Bash(npm run setup:r2:*)",
+      "Bash(npm run verify:r2:*)",
+      "Bash(npm run migrate:thumbnails:*)",
+      "Bash(npm run dev:*)"
     ]
   }
 }

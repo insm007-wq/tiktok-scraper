@@ -5,7 +5,10 @@
  * 또는: npm run setup:r2
  */
 
+import dotenv from 'dotenv';
 import { S3Client, PutBucketCorsCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
+
+dotenv.config();
 
 const r2Client = new S3Client({
   region: 'auto',

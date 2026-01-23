@@ -94,14 +94,6 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
       return [];
     }
 
-    // Phase 1-A: Raw API response sample logging
-    if (dataset.length > 0) {
-      console.log(`[Douyin] 📦 Raw API response sample (first 3 items):`);
-      dataset.slice(0, 3).forEach((item: any, idx: number) => {
-        const sampleStr = JSON.stringify(item, null, 2);
-        console.log(`[Douyin]   Item #${idx}: ${sampleStr.substring(0, 500)}${sampleStr.length > 500 ? "..." : ""}`);
-      });
-    }
 
     let thumbnailCount = 0;
     let noThumbnailCount = 0;
@@ -132,17 +124,6 @@ export async function searchDouyinVideos(query: string, limit: number, apiKey: s
           thumbnailCount++;
         } else {
           noThumbnailCount++;
-
-          // Phase 1-B: Fallback chain tracking (first 5 missing cases)
-          if (noThumbnailCount <= 5) {
-            const thumbnailSources = {
-              'videoMeta.cover': item.videoMeta?.cover,
-              'videoMeta.originCover': item.videoMeta?.originCover,
-              'thumb': item.thumb,
-            };
-            console.warn(`[Douyin] ⚠️ Failed to upload thumbnail for video ${item.id || index}:`);
-            console.warn(`[Douyin]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
-          }
         }
 
         return {
@@ -256,15 +237,6 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
       // ✨ [수정] as any 추가
       const dataset = (await datasetRes.json()) as any;
 
-      // Phase 1-A: Raw API response sample logging (only for first run)
-      if (Array.isArray(dataset) && dataset.length > 0 && sortFilter === "most_liked") {
-        console.log(`[Douyin Parallel] 📦 Raw API response sample (${sortFilter}, first 2 items):`);
-        dataset.slice(0, 2).forEach((item: any, idx: number) => {
-          const sampleStr = JSON.stringify(item, null, 2);
-          console.log(`[Douyin Parallel]   Item #${idx}: ${sampleStr.substring(0, 400)}${sampleStr.length > 400 ? "..." : ""}`);
-        });
-      }
-
       return Array.isArray(dataset) ? dataset : [];
     });
 
@@ -303,17 +275,6 @@ export async function searchDouyinVideosParallel(query: string, limit: number, a
           thumbnailCount++;
         } else {
           noThumbnailCount++;
-
-          // Phase 1-B: Fallback chain tracking (first 5 missing cases)
-          if (noThumbnailCount <= 5) {
-            const thumbnailSources = {
-              'videoMeta.cover': item.videoMeta?.cover,
-              'videoMeta.originCover': item.videoMeta?.originCover,
-              'thumb': item.thumb,
-            };
-            console.warn(`[Douyin Parallel] ⚠️ Failed to upload thumbnail for video ${item.id || index}:`);
-            console.warn(`[Douyin Parallel]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
-          }
         }
 
         return {

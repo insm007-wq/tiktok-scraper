@@ -100,38 +100,6 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
       return [];
     }
 
-    // Phase 1-A: Raw API response sample logging - Focus on thumbnail fields
-    if (dataset.length > 0) {
-      console.log(`[TikTok] 📦 API Response Analysis (first 5 items):`);
-      dataset.slice(0, 5).forEach((item: any, idx: number) => {
-        const allFields = Object.keys(item).join(", ");
-        console.log(`[TikTok]   Item #${idx} fields: ${allFields}`);
-
-        // Check all possible thumbnail fields
-        const thumbnailFields: Record<string, any> = {
-          'item.video?.thumbnail': item.video?.thumbnail,
-          'item.video?.cover': item.video?.cover,
-          'item.cover': item.cover,
-          'item.coverUrl': item.coverUrl,
-          'item.video?.dynamicCover': item.video?.dynamicCover,
-          'item.video?.originCover': item.video?.originCover,
-          'item.thumbnail': item.thumbnail,
-          'item.dynamicCover': item.dynamicCover,
-        };
-
-        console.log(`[TikTok]   Item #${idx} thumbnails:`);
-        Object.entries(thumbnailFields).forEach(([field, value]) => {
-          if (value) {
-            console.log(`[TikTok]     ✓ ${field}: ${String(value).substring(0, 100)}`);
-          }
-        });
-
-        // Log complete video object keys if video exists
-        if (item.video) {
-          console.log(`[TikTok]   Item #${idx} video fields: ${Object.keys(item.video).join(", ")}`);
-        }
-      });
-    }
 
     let thumbnailCount = 0;
     let noThumbnailCount = 0;
@@ -168,18 +136,6 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
           thumbnailCount++;
         } else {
           noThumbnailCount++;
-
-          // Phase 1-B: Fallback chain tracking (first 5 missing cases)
-          if (noThumbnailCount <= 5) {
-            const thumbnailSources = {
-              'video.thumbnail': item.video?.thumbnail,
-              'video.cover': item.video?.cover,
-              'cover': item.cover,
-              'coverUrl': item.coverUrl,
-            };
-            console.warn(`[TikTok] ⚠️ Failed to upload thumbnail for video ${item.id || index}:`);
-            console.warn(`[TikTok]   Checked fields:`, JSON.stringify(thumbnailSources, null, 2));
-          }
         }
 
         // Track video duration stats
@@ -207,15 +163,6 @@ export async function searchTikTokVideos(query: string, limit: number, apiKey: s
           videoUrl: r2Media.video || videoUrl,
           webVideoUrl: webVideoUrl,
         };
-
-        // 🔍 Debug: Log actual saved object for first 3 videos
-        if (index < 3) {
-          console.log(`[TikTok] 🔍 Actual object being saved - Video #${index}:`);
-          console.log(`[TikTok]   ID: ${videoResult.id}`);
-          console.log(`[TikTok]   Title: ${videoResult.title?.substring(0, 60)}`);
-          console.log(`[TikTok]   Thumbnail: ${videoResult.thumbnail ? videoResult.thumbnail.substring(0, 100) : 'FAILED'}`);
-          console.log(`[TikTok]   VideoUrl: ${videoResult.videoUrl ? videoResult.videoUrl.substring(0, 100) : 'FAILED'}`);
-        }
 
         return videoResult;
       })

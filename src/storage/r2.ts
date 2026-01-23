@@ -1,5 +1,8 @@
+import dotenv from 'dotenv';
 import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
+
+dotenv.config();
 
 const r2Client = new S3Client({
   region: 'auto',
@@ -21,18 +24,25 @@ function generateFileHash(url: string): string {
 }
 
 /**
- * R2에 파일이 이미 존재하는지 확인
+ * R2에 파일이 이미 존재하는지 확인 (재시도 로직 포함)
  */
-async function fileExists(key: string): Promise<boolean> {
-  try {
-    await r2Client.send(new HeadObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-    }));
-    return true;
-  } catch {
-    return false;
+async function fileExists(key: string, retries = 2): Promise<boolean> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await r2Client.send(new HeadObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: key,
+      }));
+      return true;
+    } catch (error: any) {
+      if (attempt === retries) {
+        return false;
+      }
+      // 지수 백오프 대기
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
+    }
   }
+  return false;
 }
 
 /**
@@ -93,7 +103,12 @@ export async function uploadToR2(
       headers['Accept'] = 'image/webp,image/apng,image/avif,image/*,*/*;q=0.8';
     }
 
-    const response = await fetch(tiktokUrl, { headers });
+    // 30초 타임아웃
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    const response = await fetch(tiktokUrl, { headers, signal: controller.signal });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       console.error(`[R2] ❌ Failed to download from TikTok: ${response.status}`);
@@ -104,15 +119,30 @@ export async function uploadToR2(
     const contentType = type === 'thumbnail' ? 'image/jpeg' : 'video/mp4';
     console.log(`[R2] Downloaded: ${(buffer.length / 1024).toFixed(1)}KB`);
 
-    // R2에 업로드
+    // R2에 업로드 (재시도 로직)
     console.log(`[R2] Uploading to R2: ${key}...`);
-    await r2Client.send(new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-      Body: buffer,
-      ContentType: contentType,
-      CacheControl: 'public, max-age=31536000', // 1년 캐싱
-    }));
+    let uploadSuccess = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await r2Client.send(new PutObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: key,
+          Body: buffer,
+          ContentType: contentType,
+          CacheControl: 'public, max-age=31536000', // 1년 캐싱
+        }));
+        uploadSuccess = true;
+        break;
+      } catch (error: any) {
+        if (attempt === 2) throw error;
+        // 지수 백오프 대기
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 500));
+      }
+    }
+
+    if (!uploadSuccess) {
+      return undefined;
+    }
 
     const publicUrl = `${PUBLIC_DOMAIN}/${key}`;
     console.log(`[R2] ✅ Uploaded ${type}: ${key} (${(buffer.length / 1024).toFixed(1)}KB)`);

@@ -97,14 +97,6 @@ export async function saveCache(
         thumbnailLostCount++;
       }
 
-      // 🔍 Debug: Log first few merged videos with thumbnail status
-      if (existing.id === videos[0]?.id) {
-        console.log(`[Cache] 🔍 Merge debug for "${cacheKey}" first video:`);
-        console.log(`[Cache]   ID: ${existing.id}`);
-        console.log(`[Cache]   New thumbnail: ${newVideo.thumbnail ? '✓ ' + String(newVideo.thumbnail).substring(0, 80) : '✗'}`);
-        console.log(`[Cache]   Existing thumbnail: ${existing.thumbnail ? '✓ ' + String(existing.thumbnail).substring(0, 80) : '✗'}`);
-        console.log(`[Cache]   Merged thumbnail: ${merged.thumbnail ? '✓ ' + String(merged.thumbnail).substring(0, 80) : '✗'}`);
-      }
 
       // 비디오 URL 병합: 새 데이터가 undefined면 기존 값 유지
       if (!newVideo.videoUrl && existing.videoUrl) {
@@ -136,23 +128,6 @@ export async function saveCache(
     );
   }
 
-  // 🔍 Debug: Check thumbnail before saving
-  const thumbnailStats = {
-    total: mergedVideos.length,
-    withThumbnail: mergedVideos.filter(v => v.thumbnail).length,
-  };
-  console.log(
-    `[Cache] 🔍 Pre-save check for "${cacheKey}": ${thumbnailStats.withThumbnail}/${thumbnailStats.total} with thumbnail`
-  );
-
-  // 🔍 Debug: Log first video before save
-  if (mergedVideos.length > 0) {
-    const firstVideo = mergedVideos[0];
-    console.log(`[Cache] 🔍 First video before save:`);
-    console.log(`[Cache]   ID: ${firstVideo.id}`);
-    console.log(`[Cache]   Title: ${firstVideo.title?.substring(0, 60)}`);
-    console.log(`[Cache]   Thumbnail: ${firstVideo.thumbnail ? '✓ ' + String(firstVideo.thumbnail).substring(0, 100) : '✗ MISSING'}`);
-  }
 
   await collection.updateOne(
     { cacheKey },
