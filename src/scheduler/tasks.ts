@@ -1,18 +1,16 @@
 import { searchTikTokVideos } from '../scrapers/tiktok';
 import { searchDouyinVideosParallel } from '../scrapers/douyin';
-import { searchXiaohongshuVideosParallel } from '../scrapers/xiaohongshu';
 import { saveCache, getTopKeywordsFromCache } from '../db/cache';
 import { VideoResult } from '../types/video';
 
 const apiKey = process.env.APIFY_API_KEY!;
 
 /**
- * Scrape a keyword for all three platforms
+ * Scrape a keyword for TikTok and Douyin (Xiaohongshu disabled for cost savings)
  */
 export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
   tiktok: VideoResult[];
   douyin: VideoResult[];
-  xiaohongshu: VideoResult[];
 }> {
   const startTime = Date.now();
   const timestamp = new Date().toISOString();
@@ -21,12 +19,11 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
   const results = {
     tiktok: [] as VideoResult[],
     douyin: [] as VideoResult[],
-    xiaohongshu: [] as VideoResult[],
   };
 
   try {
-    // Scrape all platforms in parallel
-    const [tikTokVideos, douyinVideos, xiaohongshuVideos] = await Promise.all([
+    // Scrape TikTok and Douyin in parallel (Xiaohongshu disabled for cost savings)
+    const [tikTokVideos, douyinVideos] = await Promise.all([
       searchTikTokVideos(keyword, 60, apiKey)
         .then(result => {
           results.tiktok = result;
@@ -52,19 +49,6 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
           console.error(`[Scraper]   ❌ Douyin error:`, error.message);
           return [];
         }),
-
-      searchXiaohongshuVideosParallel(keyword, 75, apiKey)
-        .then(result => {
-          results.xiaohongshu = result;
-          console.log(
-            `[Scraper]   ✅ Xiaohongshu: ${String(result.length).padStart(3)} videos`
-          );
-          return result;
-        })
-        .catch(error => {
-          console.error(`[Scraper]   ❌ Xiaohongshu error:`, error.message);
-          return [];
-        }),
     ]);
 
     // Calculate thumbnail stats before saving
@@ -75,19 +59,17 @@ export async function scrapeKeywordForAllPlatforms(keyword: string): Promise<{
 
     const tiktokStats = getThumbnailStats(results.tiktok);
     const douyinStats = getThumbnailStats(results.douyin);
-    const xiaohongshuStats = getThumbnailStats(results.xiaohongshu);
 
-    // Save results to database
+    // Save results to database (Xiaohongshu disabled for cost savings)
     await Promise.all([
       saveCache('tiktok', keyword, results.tiktok),
       saveCache('douyin', keyword, results.douyin),
-      saveCache('xiaohongshu', keyword, results.xiaohongshu),
     ]);
 
     const duration = Date.now() - startTime;
     console.log(`\n[Scraper] ✨ Completed: "${keyword}" in ${(duration / 1000).toFixed(2)}s`);
-    console.log(`[Scraper]   📊 Total: ${results.tiktok.length + results.douyin.length + results.xiaohongshu.length} videos`);
-    console.log(`[Scraper]   • TikTok: ${results.tiktok.length} (🎬 ${tiktokStats.withThumbnail}/${tiktokStats.total}) | Douyin: ${results.douyin.length} (🎬 ${douyinStats.withThumbnail}/${douyinStats.total}) | Xiaohongshu: ${results.xiaohongshu.length} (🎬 ${xiaohongshuStats.withThumbnail}/${xiaohongshuStats.total})\n`);
+    console.log(`[Scraper]   📊 Total: ${results.tiktok.length + results.douyin.length} videos`);
+    console.log(`[Scraper]   • TikTok: ${results.tiktok.length} (🎬 ${tiktokStats.withThumbnail}/${tiktokStats.total}) | Douyin: ${results.douyin.length} (🎬 ${douyinStats.withThumbnail}/${douyinStats.total})\n`);
 
     return results;
   } catch (error) {

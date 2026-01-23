@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import { authenticateApiKey } from '../middleware/auth';
 import { searchTikTokVideos } from '../scrapers/tiktok';
 import { searchDouyinVideosParallel } from '../scrapers/douyin';
-import { searchXiaohongshuVideosParallel } from '../scrapers/xiaohongshu';
 import { saveCache } from '../db/cache';
 import { VideoResult, Platform } from '../types/video';
 
@@ -57,13 +56,13 @@ router.post('/scrape', authenticateApiKey, async (req: Request, res: Response): 
       return;
     }
 
-    if (!['tiktok', 'douyin', 'xiaohongshu'].includes(platform)) {
+    if (!['tiktok', 'douyin'].includes(platform)) {
       res.status(400).json({
         success: false,
         videos: [],
         count: 0,
         duration: 0,
-        error: 'Invalid platform. Must be: tiktok, douyin, or xiaohongshu',
+        error: 'Invalid platform. Must be: tiktok or douyin (xiaohongshu disabled for cost savings)',
       } as ScrapeResponse);
       return;
     }
@@ -92,9 +91,7 @@ router.post('/scrape', authenticateApiKey, async (req: Request, res: Response): 
       case 'douyin':
         videos = await searchDouyinVideosParallel(query, limit, apiKey, dateRange);
         break;
-      case 'xiaohongshu':
-        videos = await searchXiaohongshuVideosParallel(query, limit, apiKey, dateRange);
-        break;
+      // Xiaohongshu disabled for cost savings
     }
 
     const duration = Date.now() - startTime;
