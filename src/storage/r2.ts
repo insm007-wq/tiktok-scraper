@@ -107,11 +107,38 @@ export async function uploadToR2(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
 
-    const response = await fetch(tiktokUrl, { headers, signal: controller.signal });
+    let response = await fetch(tiktokUrl, { headers, signal: controller.signal });
     clearTimeout(timeout);
+
+    // CDN URL은 시간 제한 파라미터로 인해 만료될 수 있음 → 재시도 (파라미터 제거)
+    if (!response.ok && tiktokUrl.includes('?')) {
+      const isCDN = tiktokUrl.includes('tiktokcdn') || tiktokUrl.includes('douyinpic') || tiktokUrl.includes('xhscdn');
+
+      if (isCDN) {
+        console.warn(`[R2] ⚠️ CDN download failed (${response.status}), retrying without query params...`);
+
+        // URL에서 query string 제거 후 재시도
+        const baseUrl = tiktokUrl.split('?')[0];
+        const retryController = new AbortController();
+        const retryTimeout = setTimeout(() => retryController.abort(), 30000);
+
+        try {
+          response = await fetch(baseUrl, { headers, signal: retryController.signal });
+          clearTimeout(retryTimeout);
+
+          if (response.ok) {
+            console.log(`[R2] ✅ Retry successful with base URL`);
+          }
+        } catch (retryError) {
+          console.error(`[R2] ⚠️ Retry also failed:`, retryError instanceof Error ? retryError.message : retryError);
+          clearTimeout(retryTimeout);
+        }
+      }
+    }
 
     if (!response.ok) {
       console.error(`[R2] ❌ Failed to download from TikTok: ${response.status}`);
+      console.error(`[R2] URL: ${tiktokUrl.substring(0, 100)}...`);
       return undefined;
     }
 
@@ -122,6 +149,8 @@ export async function uploadToR2(
     // R2에 업로드 (재시도 로직)
     console.log(`[R2] Uploading to R2: ${key}...`);
     let uploadSuccess = false;
+    let lastError: Error | null = null;
+
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await r2Client.send(new PutObjectCommand({
@@ -132,15 +161,28 @@ export async function uploadToR2(
           CacheControl: 'public, max-age=31536000', // 1년 캐싱
         }));
         uploadSuccess = true;
+        console.log(`[R2] ✅ Upload successful on attempt ${attempt + 1}`);
         break;
       } catch (error: any) {
-        if (attempt === 2) throw error;
+        lastError = error;
+        console.warn(`[R2] ⚠️ Upload attempt ${attempt + 1} failed:`, error instanceof Error ? error.message : String(error));
+
+        if (attempt === 2) {
+          // 마지막 시도 실패
+          console.error(`[R2] ❌ All 3 upload attempts failed for ${key}`);
+          console.error(`[R2] Last error:`, error instanceof Error ? error.message : String(error));
+          throw error;
+        }
+
         // 지수 백오프 대기
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 500));
+        const waitTime = Math.pow(2, attempt) * 500;
+        console.log(`[R2] Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
 
     if (!uploadSuccess) {
+      console.error(`[R2] ❌ Upload failed after 3 attempts`);
       return undefined;
     }
 
@@ -164,6 +206,19 @@ export async function uploadMediaToR2(
     thumbnailUrl ? uploadToR2(thumbnailUrl, 'thumbnail') : Promise.resolve(undefined),
     videoUrl ? uploadToR2(videoUrl, 'video') : Promise.resolve(undefined),
   ]);
+
+  // 업로드 결과 로깅
+  const hasThumb = !!thumbnail;
+  const hasVideo = !!video;
+
+  console.log(`[R2] 📊 Upload results: Thumbnail=${hasThumb ? '✅' : '❌'}, Video=${hasVideo ? '✅' : '❌'}`);
+
+  if (!thumbnail && thumbnailUrl) {
+    console.warn(`[R2] ⚠️ Thumbnail upload failed, will fallback to CDN URL`);
+  }
+  if (!video && videoUrl) {
+    console.warn(`[R2] ⚠️ Video upload failed, will fallback to original URL`);
+  }
 
   return { thumbnail, video };
 }
